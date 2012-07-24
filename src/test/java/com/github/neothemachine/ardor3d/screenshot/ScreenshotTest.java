@@ -1,24 +1,20 @@
 package com.github.neothemachine.ardor3d.screenshot;
 
-import java.awt.image.BufferedImage;
+import static org.testng.Assert.assertEquals;
 
+import java.awt.image.BufferedImage;
+import java.util.concurrent.CountDownLatch;
+
+import javax.inject.Inject;
+
+import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
-import static org.testng.Assert.*;
 
 import com.ardor3d.framework.Canvas;
 import com.ardor3d.math.ColorRGBA;
-import com.ardor3d.renderer.Camera;
-import com.ardor3d.renderer.Camera.ProjectionMode;
 import com.ardor3d.scenegraph.Node;
-import com.github.neothemachine.ardor3d.screenshot.ScreenshotCanvasPool.MaxCanvases;
-import com.github.neothemachine.ardor3d.screenshot.ScreenshotCanvasPool.ScreenshotCanvasFactory;
 import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.CanvasUpdate;
 import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
-import com.google.inject.Binder;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.name.Names;
 
 /**
  * run with -Djava.library.path=target/natives
@@ -26,15 +22,34 @@ import com.google.inject.name.Names;
  * @author maik
  *
  */
-public class ScreenshotTest implements Module {
+@Guice(modules = {LwjglModule.class})
+public class ScreenshotTest {
 
-	private final Injector injector = Guice.createInjector(this);
+	private ScreenshotCanvasPool pool;
+	
+	@Inject
+	public ScreenshotTest(ScreenshotCanvasPool pool) {
+		this.pool = pool;
+	}
 	
 	@Test
-	public void test() {
-		ScreenshotCanvasPool pool = injector.getInstance(ScreenshotCanvasPool.class);
+	public void test() throws InterruptedException {
 		
-		IntDimension size = new IntDimension(600, 500);
+		final CountDownLatch l = new CountDownLatch(5);
+		for (int x=0; x<5; ++x) {
+			final int y = x;
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					renderEmpty(new IntDimension(500, 600 + y));
+					l.countDown();
+				}
+			}).start();
+		}
+		l.await();
+	}
+	
+	private void renderEmpty(IntDimension size) {
 		ScreenshotCanvas canvas = pool.getCanvas(size);
 		canvas.queueCanvasUpdate(new CanvasUpdate() {
 			@Override
@@ -54,16 +69,7 @@ public class ScreenshotTest implements Module {
 		assertEquals(image.getWidth(), size.getWidth());
 		assertEquals(image.getHeight(), size.getHeight());
 	}
-
-	@Override
-	public void configure(Binder binder) {
-		binder.bind(ScreenshotCanvasFactory.class).toInstance(new ScreenshotCanvasFactory() {
-			@Override
-			public ScreenshotCanvas create(IntDimension size) {
-				return new LwjglAwtScreenshotCanvas(size);
-			}
-		});
-		binder.bindConstant().annotatedWith(MaxCanvases.class).to(3);
-	}
 	
 }
+
+

@@ -6,6 +6,9 @@ public final class IntDimension {
 	private final int height;
 
 	public IntDimension(int width, int height) {
+		if (width < 1 || height < 1) {
+			throw new IllegalArgumentException();
+		}
 		this.width = width;
 		this.height = height;		
 	}
