@@ -1,10 +1,5 @@
 package com.github.neothemachine.ardor3d.screenshot;
 
-/**
- * 
- * @author maik
- *
- */
 public final class IntDimension {
 
 	private final int width;
