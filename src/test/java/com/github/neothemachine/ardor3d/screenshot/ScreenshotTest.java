@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch;
 
 import javax.inject.Inject;
 
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
 
@@ -30,6 +31,11 @@ public class ScreenshotTest {
 	@Inject
 	public ScreenshotTest(ScreenshotCanvasPool pool) {
 		this.pool = pool;
+	}
+	
+	@AfterClass
+	public void dispose() {
+		this.pool.disposeAll();
 	}
 	
 	@Test

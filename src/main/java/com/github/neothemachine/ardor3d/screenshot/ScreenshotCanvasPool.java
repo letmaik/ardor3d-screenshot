@@ -19,6 +19,7 @@ import javax.inject.Singleton;
 import org.javatuples.Pair;
 
 import com.ardor3d.scenegraph.Node;
+import com.ardor3d.util.ContextGarbageCollector;
 import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
 import com.google.inject.BindingAnnotation;
 
@@ -218,9 +219,10 @@ public class ScreenshotCanvasPool {
 		if (this.inUse.size() > 0) {
 			throw new RuntimeException("At least one canvas still in use");
 		}
+		ContextGarbageCollector.doFinalCleanup(null);
 		for (ScreenshotCanvas c : this.unused.keySet()) {
 			c.dispose();
-		}
+		}		
 		this.unused.clear();
 	}
 

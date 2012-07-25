@@ -13,6 +13,7 @@ import org.lwjgl.LWJGLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ardor3d.annotation.MainThread;
 import com.ardor3d.framework.CanvasRenderer;
 import com.ardor3d.framework.DisplaySettings;
 import com.ardor3d.framework.FrameHandler;
@@ -68,6 +69,11 @@ public class LwjglAwtScreenshotCanvasSingleThreaded implements ScreenshotCanvas,
 		return size;
 	}
 	
+	/**
+	 * init isn't used at this point because threading is broken
+	 * scene init happens later in user code by queueing
+	 * @see http://ardor3d.com/forums/viewtopic.php?f=13&t=1020
+	 */
     public void init() {
     }
     
@@ -80,9 +86,16 @@ public class LwjglAwtScreenshotCanvasSingleThreaded implements ScreenshotCanvas,
         	.execute();
     }
     
+    // called in AWT-EventQueue thread
     public boolean renderUnto(final Renderer renderer) {    	
     	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER)
                 .execute(renderer);
+    	
+    	// necessary because internal ardor3d code relies on this queue
+    	// it happens after our own queue so that dispose() works correctly
+    	// see http://ardor3d.com/forums/viewtopic.php?f=13&t=1020&p=16253#p16253
+    	GameTaskQueueManager.getManager(canvas.getCanvasRenderer().getRenderContext()).
+    		getQueue(GameTaskQueue.RENDER).execute(renderer);
         
         // Clean up card garbage such as textures, vbos, etc.
         ContextGarbageCollector.doRuntimeCleanup(renderer);
@@ -139,7 +152,7 @@ public class LwjglAwtScreenshotCanvasSingleThreaded implements ScreenshotCanvas,
 				update.update(root);
 				root.updateGeometricState(0);
 				return null;
-			}			
+			}
 		});
 	}
 
@@ -181,13 +194,16 @@ public class LwjglAwtScreenshotCanvasSingleThreaded implements ScreenshotCanvas,
 	@Override
 	public void dispose() {
 		try {
-			final CanvasRenderer canvasRenderer = canvas.getCanvasRenderer();
-	        // grab the graphics context so cleanup will work out.
-//			canvas.makeCurrent();
-			// TODO cleanup necessary? how without context?
-//	        ContextGarbageCollector.doFinalCleanup(canvasRenderer.getRenderer());
+			// render one last empty frame, as required (see dispose() javadoc)
+			this.queueSceneUpdate(new SceneGraphUpdate() {
+				@Override
+				public void update(Node root) {
+					root.detachAllChildren();
+				}
+			});
+			_frameHandler.updateFrame();
 	        frame.dispose();
-//	        canvas.releaseContext();
+
 		} catch (Exception e) {
 			log.error("Error disposing canvas resources", e);
 		}
