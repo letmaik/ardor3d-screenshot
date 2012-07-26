@@ -11,7 +11,7 @@ public class LwjglModule implements Module {
 		binder.bind(ScreenshotCanvasFactory.class).toInstance(new ScreenshotCanvasFactory() {
 			@Override
 			public ScreenshotCanvas create(IntDimension size) {
-				return new LwjglAwtScreenshotCanvasSingleThreaded(size);
+				return new LwjglAwtScreenshotCanvas(size);
 			}
 		});
 		binder.bindConstant().annotatedWith(MaxCanvases.class).to(3);
