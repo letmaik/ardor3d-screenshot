@@ -12,7 +12,9 @@ import com.ardor3d.util.resource.URLResourceSource;
  * returns the same resource, no matter which resource name is given.
  * 
  * It is used to directly load a single mesh file without specifying any
- * folder where all meshes reside (which is common for games).
+ * folder where all meshes reside (which is common for games). This is useful
+ * when just meshes are loaded which don't reference any other files like
+ * textures etc. (e.g. OpenCTM format).   
  * 
  * @author maik
  *

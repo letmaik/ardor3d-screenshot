@@ -11,6 +11,7 @@ import org.lwjgl.LWJGLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ardor3d.framework.Canvas;
 import com.ardor3d.framework.DisplaySettings;
 import com.ardor3d.framework.FrameHandler;
 import com.ardor3d.framework.Scene;
@@ -74,13 +75,14 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, Updater, Scen
         if (Constants.stats) {
             StatCollector.update();
         }
-        
+       
         GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
         	.execute();
     }
     
     // called in AWT-EventQueue thread
     public boolean renderUnto(final Renderer renderer) {    	
+
     	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER)
                 .execute(renderer);
     	
@@ -112,6 +114,22 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, Updater, Scen
         final DisplaySettings settings = new DisplaySettings(size.getWidth(), size.getHeight(),
         		24, 1, 8, 8, 0, aaSamples, false, false);
 
+        GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE).setExecuteMultiple(true);
+        GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER).setExecuteMultiple(true);
+        
+        // Don't know if this is necessary, probably not, but it doesn't hurt.
+        // For our own queues, we need it because we only want to render exactly two frames
+        // and don't wait until all queued actions are executed. 
+        // The internal queue here is only used internally when disposing the canvas and
+        // deleting textures etc., and at least the javadoc says that only ONE frame
+        // needs to be rendered, so they probably don't enqueue more than one action.
+        this.queueCanvasUpdate(new CanvasUpdate() {
+			@Override
+			public void update(Canvas canvas) {
+				GameTaskQueueManager.getManager(canvas.getCanvasRenderer().getRenderContext()).
+	    			getQueue(GameTaskQueue.RENDER).setExecuteMultiple(true);
+			}
+		});
 
         final LwjglCanvasRenderer canvasRenderer = new LwjglCanvasRenderer(this);
         try {

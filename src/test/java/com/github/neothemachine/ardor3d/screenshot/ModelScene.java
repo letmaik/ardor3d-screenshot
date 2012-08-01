@@ -20,6 +20,7 @@ import com.ardor3d.util.resource.SimpleResourceLocator;
 public class ModelScene {
 	
 	private File model;
+	private Node mesh = null;
 
 	public ModelScene(File model) {
 		this.model = model;
@@ -56,6 +57,15 @@ public class ModelScene {
         root.setRenderState(lightState);
         
         root.attachChild(mesh);
+        
+        this.mesh = mesh;
+	}
+	
+	public Node getLoadedMesh() {
+		if (this.mesh == null) {
+			throw new IllegalStateException();
+		}
+		return this.mesh;
 	}
 
 	private static Node loadMesh(File model) throws IOException {
@@ -71,7 +81,7 @@ public class ModelScene {
 		} catch (URISyntaxException e) {
 			throw new RuntimeException(e);
 		}
-        
+		
         ColladaImporter importer = new ColladaImporter();
         importer.setModelLocator(modelLocator);
         importer.setTextureLocator(modelLocator);

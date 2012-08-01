@@ -21,6 +21,7 @@ import org.javatuples.Pair;
 import com.ardor3d.scenegraph.Node;
 import com.ardor3d.util.ContextGarbageCollector;
 import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
+import com.google.common.collect.Maps;
 import com.google.inject.BindingAnnotation;
 
 @Singleton
@@ -38,6 +39,8 @@ public class ScreenshotCanvasPool {
 	public interface Condition {
 		boolean equals(Object that);
 	}
+	public interface ConditionData {
+	}
 
 	private final ScreenshotCanvasFactory factory;
 	
@@ -48,7 +51,7 @@ public class ScreenshotCanvasPool {
 	
 	private final int maxCanvases;
 
-	private final Map<ScreenshotCanvas, Set<Condition>> unused = new HashMap<ScreenshotCanvas, Set<Condition>>();
+	private final Map<ScreenshotCanvas, Map<Condition, ConditionData>> unused = new HashMap<ScreenshotCanvas, Map<Condition, ConditionData>>();
 
 	private final Set<ScreenshotCanvas> inUse = new HashSet<ScreenshotCanvas>();
 
@@ -110,8 +113,8 @@ public class ScreenshotCanvasPool {
 		return canvas;		
 	}
 
-	public synchronized Pair<ScreenshotCanvas, Set<Condition>> getCanvas(
-			IntDimension size, Set<Condition> preferredConditions) {
+	public synchronized <T extends Condition> Pair<ScreenshotCanvas, Map<Condition, ConditionData>> getCanvas(
+			IntDimension size, Set<T> preferredConditions) {
 
 		int unusedCount = this.unused.size();
 		int usedCount = this.inUse.size();
@@ -137,7 +140,7 @@ public class ScreenshotCanvasPool {
 		
 		List<ScreenshotCanvas> conditionMatchCanvases = new LinkedList<ScreenshotCanvas>();
 		for (ScreenshotCanvas canvas : sizeMatchCanvases) {
-			Set<Condition> conditions = this.unused.get(canvas);
+			Set<Condition> conditions = this.unused.get(canvas).keySet();
 			if (conditions.containsAll(preferredConditions)) {
 				conditionMatchCanvases.add(canvas);
 			}
@@ -145,10 +148,10 @@ public class ScreenshotCanvasPool {
 		
 		if (conditionMatchCanvases.size() > 0) {
 			ScreenshotCanvas canvas = conditionMatchCanvases.get(0);
-			Set<Condition> conditions = this.unused.get(canvas);
+			Map<Condition, ConditionData> conditions = this.unused.get(canvas);
 			this.inUse.add(canvas);
 			this.unused.remove(canvas);
-			return new Pair<ScreenshotCanvas, Set<Condition>>(canvas, conditions);
+			return new Pair<ScreenshotCanvas, Map<Condition, ConditionData>>(canvas, conditions);
 		}
 		
 		if (sizeMatchCanvases.size() > 0) {
@@ -156,7 +159,10 @@ public class ScreenshotCanvasPool {
 			clearSceneGraph(canvas);
 			this.inUse.add(canvas);
 			this.unused.remove(canvas);
-			return new Pair<ScreenshotCanvas, Set<Condition>>(canvas, new HashSet<Condition>());
+			return new Pair<ScreenshotCanvas, Map<Condition, ConditionData>>(
+					canvas,
+					new HashMap<Condition, ConditionData>()
+					);
 		}
 		
 		if (unusedCount + usedCount == maxCanvases) {
@@ -177,7 +183,8 @@ public class ScreenshotCanvasPool {
 			}
 		});
 		
-		return new Pair<ScreenshotCanvas, Set<Condition>>(canvas, new HashSet<Condition>());
+		return new Pair<ScreenshotCanvas, Map<Condition, ConditionData>>(
+				canvas, new HashMap<Condition, ConditionData>());
 	}
 
 	public synchronized void returnCanvas(ScreenshotCanvas canvas) {
@@ -189,19 +196,19 @@ public class ScreenshotCanvasPool {
 		clearSceneGraph(canvas);
 
 		this.inUse.remove(canvas);
-		this.unused.put(canvas, new HashSet<Condition>());
+		this.unused.put(canvas, new HashMap<Condition, ConditionData>());
 		this.notifyAll();
 	}
 
 	public synchronized void returnCanvas(ScreenshotCanvas canvas,
-			Set<Condition> conditions) {
+			Map<Condition, ConditionData> conditions) {
 
 		if (!this.inUse.contains(canvas)) {
 			throw new RuntimeException("Canvas wasn't in use");
 		}
 
 		this.inUse.remove(canvas);
-		this.unused.put(canvas, new HashSet<Condition>(conditions));
+		this.unused.put(canvas, new HashMap<Condition, ConditionData>(conditions));
 		this.notifyAll();
 	}
 	
