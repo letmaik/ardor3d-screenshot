@@ -4,8 +4,6 @@ import java.awt.image.BufferedImage;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.concurrent.Callable;
 
-import org.apache.commons.lang.NotImplementedException;
-
 import com.ardor3d.framework.Canvas;
 import com.ardor3d.framework.DisplaySettings;
 import com.ardor3d.framework.Scene;
@@ -171,7 +169,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 
 	@Override
 	public PickResults doPick(Ray3 pickRay) {
-		throw new NotImplementedException();
+		throw new UnsupportedOperationException();
 	}
 
 }
