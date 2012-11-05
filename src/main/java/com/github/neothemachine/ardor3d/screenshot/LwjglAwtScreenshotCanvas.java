@@ -32,16 +32,17 @@ import com.ardor3d.util.ReadOnlyTimer;
 import com.ardor3d.util.Timer;
 import com.ardor3d.util.screen.ScreenExporter;
 import com.ardor3d.util.stat.StatCollector;
+import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.CanvasUpdate;
 
 public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, Updater, Scene {
 	private static final Logger log = LoggerFactory.getLogger(LwjglAwtScreenshotCanvas.class);	
 	
-	private final IntDimension size;
+	private IntDimension size;
 		
     private final FrameHandler _frameHandler = new FrameHandler(new Timer());
     private final ScreenShotBufferExporter _screenShotExp = new ScreenShotBufferExporter();
 
-    private LwjglAwtCanvas canvas;
+    public LwjglAwtCanvas canvas;
     private JFrame frame;
     private final Node root = new Node();
     
@@ -61,6 +62,23 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, Updater, Scen
 	@Override
 	public IntDimension getSize() {
 		return size;
+	}
+	
+	@Override
+	public void setSize(final IntDimension size) {
+		if (this.canvas.getWidth() != size.getWidth() || this.canvas.getHeight() != size.getHeight()) {
+			this.canvas.setSize(size.getWidth(), size.getHeight());
+			this.queueCanvasUpdate(new CanvasUpdate() {
+				@Override
+				public void update(Canvas canvas) {
+					// TODO check if this destroys our own cam adjustments
+					canvas.getCanvasRenderer().getCamera().resize(
+							size.getWidth(), size.getHeight());
+				}
+			});
+		}
+		
+		this.size = size;
 	}
 	
 	/**
@@ -94,6 +112,10 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, Updater, Scen
         
         // Clean up card garbage such as textures, vbos, etc.
         ContextGarbageCollector.doRuntimeCleanup(renderer);
+        
+        // obscured parts of a window might result in garbage, so we bring it to the front
+        // see http://www.opengl.org/archives/resources/faq/technical/rasterization.htm#rast0070
+        frame.toFront();
 
     	root.draw(renderer);
 
@@ -143,7 +165,7 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, Updater, Scen
         canvas.setVisible(true);
         
         frame.pack();
-        frame.setVisible(true);     
+        frame.setVisible(true);
         
         
         TextureRendererFactory.INSTANCE.setProvider(new LwjglTextureRendererProvider());

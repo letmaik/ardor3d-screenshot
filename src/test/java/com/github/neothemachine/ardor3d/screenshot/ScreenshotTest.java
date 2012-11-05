@@ -16,6 +16,7 @@ import javax.inject.Inject;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.javatuples.Pair;
+import org.jodah.concurrentunit.Waiter;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
@@ -26,6 +27,7 @@ import com.ardor3d.image.Texture;
 import com.ardor3d.image.util.AWTImageLoader;
 import com.ardor3d.math.ColorRGBA;
 import com.ardor3d.renderer.state.TextureState;
+import com.ardor3d.scenegraph.Mesh;
 import com.ardor3d.scenegraph.Node;
 import com.ardor3d.scenegraph.Spatial;
 import com.ardor3d.util.TextureManager;
@@ -62,14 +64,20 @@ public class ScreenshotTest {
 	@Test
 	public void testEmpty() throws InterruptedException {
 		
-		int count = 3;
+//		final Waiter waiter = new Waiter();
+		
+		int count = 10;
 		final CountDownLatch l = new CountDownLatch(count);
 		for (int x=0; x < count; ++x) {
 			final int y = x;
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					renderEmpty(new IntDimension(500, 600 + y));
+					BufferedImage i = renderEmpty(new IntDimension(500, 600 + 2*y));
+//					waiter.assertEquals(i.getWidth(), 500);
+//					waiter.assertEquals(i.getHeight(), 600 + y);
+					assertEquals(i.getWidth(), 500);
+					assertEquals(i.getHeight(), 600 + 2*y);
 					l.countDown();
 				}
 			}).start();
@@ -80,14 +88,21 @@ public class ScreenshotTest {
 	@Test
 	public void testModel() throws InterruptedException {
 		
-		int count = 3;
+		int count = 5;
 		final CountDownLatch l = new CountDownLatch(count);
 		for (int x=0; x < count; ++x) {
 			final int y = x;
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					renderScene(new IntDimension(500, 600 /*+ y*/));
+					BufferedImage image = renderScene(new IntDimension(500, 600 + 2*y));
+					assertEquals(image.getWidth(), 500);
+					assertEquals(image.getHeight(), 600 + 2*y);
+					try {
+						ImageIO.write(image, "png", new File("test" + y + ".png"));
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 					l.countDown();
 				}
 			}).start();
@@ -103,32 +118,32 @@ public class ScreenshotTest {
 	public void testModelReuse() throws InterruptedException, IOException {
 		
 		int reuseCount = 0;
-		int count = 3;
+		final int count = 5;
 		for (int x=0; x < count; ++x) {
-			File texture = getResource("table/texture" + x + ".jpg");
+			File texture = getResource("table/texture" + (x % 3) + ".jpg");
 			Pair<Boolean,BufferedImage> result = renderSceneReuse(new IntDimension(500, 600), texture);
 			if (result.getValue0()) {
 				reuseCount++;
 			}
-			ImageIO.write(result.getValue1(), "png", new File("test" + x + ".png"));
+			ImageIO.write(result.getValue1(), "png", new File("test2" + x + ".png"));
 		}
 		
-		assertEquals(reuseCount, 2);
+		assertEquals(reuseCount, count-1);
 	}
 	
-	private void renderEmpty(IntDimension size) {
+	private BufferedImage renderEmpty(IntDimension size) {
 		ScreenshotCanvas canvas = pool.getCanvas(size);
 		BufferedImage image = canvas.takeShot();
 		pool.returnCanvas(canvas);
 		
-		assertEquals(image.getWidth(), size.getWidth());
-		assertEquals(image.getHeight(), size.getHeight());
+		return image;
 	}
 	
-	private void renderScene(IntDimension size) {
+	private BufferedImage renderScene(IntDimension size) {
 		File model = getResource("table/table.dae");
 		final ModelScene scene = new ModelScene(model);
 		ScreenshotCanvas canvas = pool.getCanvas(size);
+
 		canvas.queueCanvasUpdate(new CanvasUpdate() {
 			@Override
 			public void update(Canvas canvas) {
@@ -142,14 +157,12 @@ public class ScreenshotTest {
 			}
 		});
 		BufferedImage image = canvas.takeShot();
-		try {
-			ImageIO.write(image, "png", new File("test.png"));
-		} catch (IOException e) {
-		}
 		pool.returnCanvas(canvas);
-		
+			
 		assertEquals(image.getWidth(), size.getWidth());
 		assertEquals(image.getHeight(), size.getHeight());
+		
+		return image;
 	}
 	
 	private Pair<Boolean,BufferedImage> renderSceneReuse(IntDimension size, File texture) {

@@ -6,6 +6,12 @@ import java.lang.Thread.UncaughtExceptionHandler;
 public interface ScreenshotCanvas extends UpdateableCanvas {
 
 	IntDimension getSize();
+	
+	/**
+	 * Changes the canvas size if the given size is different.
+	 * @param size
+	 */
+	void setSize(IntDimension size);
 
 	BufferedImage takeShot();
 
