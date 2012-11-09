@@ -34,7 +34,7 @@ import com.ardor3d.util.screen.ScreenExporter;
 import com.ardor3d.util.stat.StatCollector;
 import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.CanvasUpdate;
 
-public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, Updater, Scene {
+public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanvas, Updater, Scene {
 	private static final Logger log = LoggerFactory.getLogger(LwjglAwtScreenshotCanvas.class);	
 	
 	private IntDimension size;

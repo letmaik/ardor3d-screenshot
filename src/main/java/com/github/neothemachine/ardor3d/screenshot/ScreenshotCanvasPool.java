@@ -29,9 +29,10 @@ import com.google.inject.BindingAnnotation;
 @Singleton
 public class ScreenshotCanvasPool {
 
-	static {
-		System.setProperty("ardor3d.useMultipleContexts", "true");
-	}
+	// TODO needed?
+//	static {
+//		System.setProperty("ardor3d.useMultipleContexts", "true");
+//	}
 
 	public interface ScreenshotCanvasFactory {
 		ScreenshotCanvas create(IntDimension size);
@@ -79,9 +80,18 @@ public class ScreenshotCanvasPool {
 			unusedCount = this.unused.size();
 			usedCount = this.inUse.size();
 		}
+		
+		/*
+		 * Order:
+		 * 1. Canvas of matching size
+		 * 2. Resizable canvas with size changed
+		 * 3. Dispose a canvas (if pool full) and create a new one with the requested size
+		 */
 
+		// 1. Canvas of matching size
 		for (ScreenshotCanvas canvas : this.unused.keySet()) {
 			if (canvas.getSize().equals(size)) {
+				clearSceneGraph(canvas);
 				this.inUse.add(canvas);
 				this.unused.remove(canvas);
 				return canvas;
@@ -89,13 +99,26 @@ public class ScreenshotCanvasPool {
 		}
 		
 		if (this.unused.size() > 0) {
-			ScreenshotCanvas canvas = this.unused.keySet().iterator().next();
-			canvas.setSize(size);
-			this.inUse.add(canvas);
-			this.unused.remove(canvas);
-			return canvas;
+			// 2. Resizable canvas with size changed
+			for (ScreenshotCanvas canvas : this.unused.keySet()) {
+				if (canvas instanceof ResizableCanvas) {
+					clearSceneGraph(canvas);
+					((ResizableCanvas) canvas).setSize(size);
+					this.inUse.add(canvas);
+					this.unused.remove(canvas);
+					return canvas;
+				}
+			}
+
+			// 3. Dispose a canvas (if pool full) ...
+			if (usedCount + unusedCount == this.maxCanvases) {
+				ScreenshotCanvas canvas = this.unused.keySet().iterator().next();
+				canvas.dispose();
+				this.unused.remove(canvas);
+			}
 		}
 		
+		// 3. ... and create a new one with the requested size
 		final ScreenshotCanvas canvas = this.factory.create(size); 
 		this.inUse.add(canvas);
 		
@@ -129,6 +152,14 @@ public class ScreenshotCanvasPool {
 			usedCount = this.inUse.size();
 		}
 
+		/**
+		 * Order:
+		 * 1. Canvas with matching size and conditions
+		 * 2. Canvas with matching size
+		 * 3. Resizeable canvas with size changed
+		 * 4. Dispose a canvas (if pool full) and create a new one with the requested size
+		 */
+		
 		List<ScreenshotCanvas> sizeMatchCanvases = new LinkedList<ScreenshotCanvas>();
 		for (ScreenshotCanvas canvas : this.unused.keySet()) {
 			if (canvas.getSize().equals(size)) {
@@ -136,7 +167,7 @@ public class ScreenshotCanvasPool {
 			}
 		}
 		
-		// if there's a canvas where all conditions match, use it
+		// 1. Canvas with matching size and conditions
 		for (ScreenshotCanvas canvas : sizeMatchCanvases) {
 			Set<Condition> conditions = this.unused.get(canvas).keySet();
 			if (conditions.containsAll(preferredConditions)) {
@@ -146,10 +177,10 @@ public class ScreenshotCanvasPool {
 				return new Pair<ScreenshotCanvas, Map<Condition, ConditionData>>(canvas, conditionData);
 			}
 		}
-			
-		if (unusedCount + usedCount == maxCanvases) {
+		
+		// 2. Canvas with matching size
+		if (sizeMatchCanvases.size() > 0) {
 			ScreenshotCanvas canvas = this.unused.keySet().iterator().next();
-			canvas.setSize(size);
 			clearSceneGraph(canvas);
 			this.inUse.add(canvas);
 			this.unused.remove(canvas);
@@ -158,7 +189,29 @@ public class ScreenshotCanvasPool {
 					new HashMap<Condition, ConditionData>()
 					);
 		}
-				
+		
+		// 3. Resizable canvas with size changed
+		for (ScreenshotCanvas canvas : this.unused.keySet()) {
+			if (canvas instanceof ResizableCanvas) {
+				clearSceneGraph(canvas);
+				((ResizableCanvas) canvas).setSize(size);
+				this.inUse.add(canvas);
+				this.unused.remove(canvas);
+				return new Pair<ScreenshotCanvas, Map<Condition, ConditionData>>(
+						canvas,
+						new HashMap<Condition, ConditionData>()
+						);
+			}
+		}
+
+		// 4. Dispose a canvas (if pool full) ...
+		if (usedCount + unusedCount == this.maxCanvases) {
+			ScreenshotCanvas canvas = this.unused.keySet().iterator().next();
+			canvas.dispose();
+			this.unused.remove(canvas);
+		}
+						
+		// 4. ... and create a new one with the requested size
 		final ScreenshotCanvas canvas = this.factory.create(size); 
 		this.inUse.add(canvas);
 		
@@ -180,8 +233,6 @@ public class ScreenshotCanvasPool {
 		if (!this.inUse.contains(canvas)) {
 			throw new RuntimeException("Canvas wasn't in use");
 		}
-
-		clearSceneGraph(canvas);
 
 		this.inUse.remove(canvas);
 		this.unused.put(canvas, new HashMap<Condition, ConditionData>());

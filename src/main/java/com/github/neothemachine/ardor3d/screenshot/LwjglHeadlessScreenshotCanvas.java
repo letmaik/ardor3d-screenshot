@@ -4,8 +4,6 @@ import java.awt.image.BufferedImage;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.concurrent.Callable;
 
-import org.apache.commons.lang.NotImplementedException;
-
 import com.ardor3d.framework.Canvas;
 import com.ardor3d.framework.DisplaySettings;
 import com.ardor3d.framework.Scene;
@@ -34,6 +32,8 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 	private final LwjglHeadlessCanvas canvas;
 	private final Renderer renderer;
 	
+	private final Canvas canvasWrapper;
+	
 	private final Node root = new Node();
 	
 	private final ScreenShotBufferExporter screenShotExp = new ScreenShotBufferExporter();
@@ -50,6 +50,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
         		24, 1, 8, 8, 0, aaSamples, false, false);
 		
 		this.canvas = new LwjglHeadlessCanvas(settings, this);
+		this.canvasWrapper = new LwjglHeadlessCanvasWrapper(this.canvas);
 		this.renderer = this.canvas.getRenderer();
 		
 		GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE).setExecuteMultiple(true);
@@ -61,13 +62,15 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
         // The internal queue here is only used internally when disposing the canvas and
         // deleting textures etc., and at least the javadoc says that only ONE frame
         // needs to be rendered, so they probably don't enqueue more than one action.
-        this.queueCanvasUpdate(new CanvasUpdate() {
-			@Override
-			public void update(Canvas canvas) {
-				GameTaskQueueManager.getManager(canvas.getCanvasRenderer().getRenderContext()).
-	    			getQueue(GameTaskQueue.RENDER).setExecuteMultiple(true);
-			}
-		});
+
+        // TODO doesn't work as our wrapper is too stupid
+//        this.queueCanvasUpdate(new CanvasUpdate() {
+//			@Override
+//			public void update(Canvas canvas) {
+//				GameTaskQueueManager.getManager(canvas.getCanvasRenderer().getRenderContext()).
+//	    			getQueue(GameTaskQueue.RENDER).setExecuteMultiple(true);
+//			}
+//		});
         
         TextureRendererFactory.INSTANCE.setProvider(new LwjglTextureRendererProvider());
 	}
@@ -89,8 +92,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 		GameTaskQueueManager.getManager(this).render(new Callable<Void>() {
 			@Override
 			public Void call() throws Exception {
-				// FIXME we don't have a canvas, what now??
-//				update.update(canvas);
+				update.update(canvasWrapper);
 				return null;
 			}			
 		});
@@ -102,17 +104,14 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 	}
 
 	@Override
-	public void setSize(IntDimension size) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public BufferedImage takeShot() {
         // only works after the 2nd frame
 		// FIXME we don't have a frame handler, what now??
 //        _frameHandler.updateFrame();
         isShotRequested = true;
 //        _frameHandler.updateFrame();
+        
+        this.canvas.draw();
     	
 		synchronized (shotFinishedMonitor) {
         	while (isShotRequested) {
@@ -133,7 +132,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 
 	@Override
 	public void addUncaughtExceptionHandler(UncaughtExceptionHandler eh) {
-		
+		// TODO
 	}
 
 	@Override
@@ -159,7 +158,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 		if (isShotRequested) {
 		    // force any waiting scene elements to be rendered.
 		    renderer.renderBuckets();
-		    ScreenExporter.exportCurrentScreen(canvas.getRenderer(), screenShotExp);
+		    ScreenExporter.exportCurrentScreen(renderer, screenShotExp);
 		    synchronized (shotFinishedMonitor) {
 		    	isShotRequested = false;
 		    	this.shotFinishedMonitor.notifyAll();
@@ -171,7 +170,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 
 	@Override
 	public PickResults doPick(Ray3 pickRay) {
-		throw new NotImplementedException();
+		throw new UnsupportedOperationException();
 	}
 
 }
