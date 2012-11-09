@@ -18,10 +18,12 @@ import com.ardor3d.util.ContextGarbageCollector;
 import com.ardor3d.util.GameTaskQueue;
 import com.ardor3d.util.GameTaskQueueManager;
 import com.ardor3d.util.screen.ScreenExporter;
-import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.CanvasUpdate;
 
 /**
  * Work in progress
+ * 
+ * TODO this class should be properly threaded for each instance so that multiple
+ * instances can be used
  * 
  * @author maik
  *
@@ -108,19 +110,20 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
         // only works after the 2nd frame
 		// FIXME we don't have a frame handler, what now??
 //        _frameHandler.updateFrame();
+		this.canvas.draw();
         isShotRequested = true;
 //        _frameHandler.updateFrame();
         
         this.canvas.draw();
     	
-		synchronized (shotFinishedMonitor) {
-        	while (isShotRequested) {
-	    		try {
-	    			shotFinishedMonitor.wait();
-	    		} catch (InterruptedException e) {
-	    		}
-        	}
-		}
+//		synchronized (shotFinishedMonitor) {
+//        	while (isShotRequested) {
+//	    		try {
+//	    			shotFinishedMonitor.wait();
+//	    		} catch (InterruptedException e) {
+//	    		}
+//        	}
+//		}
 		
     	return screenShotExp.getLastImage();
 	}
@@ -159,10 +162,10 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 		    // force any waiting scene elements to be rendered.
 		    renderer.renderBuckets();
 		    ScreenExporter.exportCurrentScreen(renderer, screenShotExp);
-		    synchronized (shotFinishedMonitor) {
-		    	isShotRequested = false;
-		    	this.shotFinishedMonitor.notifyAll();
-			}
+//		    synchronized (shotFinishedMonitor) {
+//		    	isShotRequested = false;
+//		    	this.shotFinishedMonitor.notifyAll();
+//			}
 		}
 		return true;
 		
