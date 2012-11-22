@@ -2,7 +2,12 @@ package com.github.neothemachine.ardor3d.screenshot;
 
 import java.awt.image.BufferedImage;
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.concurrent.Callable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.ardor3d.framework.Canvas;
 import com.ardor3d.framework.DisplaySettings;
@@ -23,13 +28,18 @@ import com.ardor3d.util.screen.ScreenExporter;
  * Work in progress
  * 
  * TODO this class should be properly threaded for each instance so that multiple
- * instances can be used
+ * instances can be used (by any calling threads)
  * 
  * @author maik
  *
  */
-public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
+public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene, Runnable {
 
+	private static final Logger log = LoggerFactory.getLogger(LwjglHeadlessScreenshotCanvas.class);
+	
+	private final Collection<UncaughtExceptionHandler> uncaughtExceptionHandlers =
+			new LinkedList<UncaughtExceptionHandler>();
+	
 	private final IntDimension size;
 	private final LwjglHeadlessCanvas canvas;
 	private final Renderer renderer;
@@ -40,8 +50,15 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 	
 	private final ScreenShotBufferExporter screenShotExp = new ScreenShotBufferExporter();
 	
-    private boolean isShotRequested = false;
-    private final Object shotFinishedMonitor = new Object();
+	private Throwable lastUncaughtException = null;
+	  
+	private boolean isExitRequested = false;
+	private boolean isExitDone = false;
+	private final Object exitDoneMonitor = new Object();
+	  
+	private boolean isShotRequested = false;
+	private final Object shotRequestedMonitor = new Object();
+	private final Object shotFinishedMonitor = new Object();  
 	
 	public LwjglHeadlessScreenshotCanvas(IntDimension size) {
 		
@@ -75,6 +92,27 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 //		});
         
         TextureRendererFactory.INSTANCE.setProvider(new LwjglTextureRendererProvider());
+        
+        
+        
+      Thread renderThread = new Thread(this);
+      renderThread.setUncaughtExceptionHandler(new UncaughtExceptionHandler() {
+			@Override
+			public void uncaughtException(Thread t, Throwable e) {
+				log.error(e.getMessage(), e);
+				lastUncaughtException = e;
+				// wake up takeShot() on error
+				synchronized (shotFinishedMonitor) {
+					shotFinishedMonitor.notifyAll();
+				}
+				for (UncaughtExceptionHandler eh : uncaughtExceptionHandlers) {
+					eh.uncaughtException(t, e);
+				}
+				dispose();
+			}
+		});
+      renderThread.start();
+        
 	}
 	
 	@Override
@@ -107,35 +145,34 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 
 	@Override
 	public BufferedImage takeShot() {
-        // only works after the 2nd frame
-		// FIXME we don't have a frame handler, what now??
-//        _frameHandler.updateFrame();
-		this.canvas.draw();
-        isShotRequested = true;
-//        _frameHandler.updateFrame();
-        
-        this.canvas.draw();
-    	
-//		synchronized (shotFinishedMonitor) {
-//        	while (isShotRequested) {
-//	    		try {
-//	    			shotFinishedMonitor.wait();
-//	    		} catch (InterruptedException e) {
-//	    		}
-//        	}
-//		}
+    	synchronized (shotRequestedMonitor) {
+	    	if (isShotRequested) {
+	    		throw new IllegalStateException("Another screenshot is already in progress");
+	    	}
+	//    	this.canvas.getCanvasRenderer().makeCurrentContext();
+			isShotRequested = true;
+			shotRequestedMonitor.notifyAll();
+		}
+		synchronized (shotFinishedMonitor) {
+	    	while (isShotRequested) {
+	    		try {
+	    			shotFinishedMonitor.wait();
+	    		} catch (InterruptedException e) {
+	    		}
+	    		if (lastUncaughtException != null) {
+	    			throw new Ardor3DRenderException(lastUncaughtException);
+	    		}
+	    	}
+		}
 		
     	return screenShotExp.getLastImage();
 	}
 
-	@Override
-	public void dispose() {
-		// TODO do we need to dispose something?
-	}
+
 
 	@Override
 	public void addUncaughtExceptionHandler(UncaughtExceptionHandler eh) {
-		// TODO
+		this.uncaughtExceptionHandlers.add(eh);
 	}
 
 	@Override
@@ -156,19 +193,72 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene {
 		// Clean up card garbage such as textures, vbos, etc.
 		ContextGarbageCollector.doRuntimeCleanup(renderer);
 			
-		root.draw(renderer);
-		
-		if (isShotRequested) {
-		    // force any waiting scene elements to be rendered.
-		    renderer.renderBuckets();
-		    ScreenExporter.exportCurrentScreen(renderer, screenShotExp);
-//		    synchronized (shotFinishedMonitor) {
-//		    	isShotRequested = false;
-//		    	this.shotFinishedMonitor.notifyAll();
-//			}
+      	root.draw(renderer);
+
+          if (isShotRequested) {
+              // force any waiting scene elements to be rendered.
+              renderer.renderBuckets();
+              ScreenExporter.exportCurrentScreen(canvasWrapper.getCanvasRenderer().getRenderer(), screenShotExp);
+              synchronized (shotFinishedMonitor) {
+              	isShotRequested = false;
+              	this.shotFinishedMonitor.notifyAll();
+				}
+          }
+          return true;
+
+	}
+	
+	@Override
+	public void run() {
+//		canvasRenderer.releaseCurrentContext();
+        while (!isExitRequested) {
+            synchronized (shotRequestedMonitor) {
+            	while (!isShotRequested && !isExitRequested) {
+            		try {
+            			// this should be a new monitor for the invariant 
+            			// !isShotRequested && !isExitRequested
+            			// but anyway.. we just notifyAll shotRequestedMonitor in exit()
+            			shotRequestedMonitor.wait(); 
+					} catch (InterruptedException e) {}
+            	}
+			}
+            isShotRequested = false;
+            this.canvas.draw();
+            isShotRequested = true;
+            this.canvas.draw();
+        }
+        this.doDispose();
+	}
+	
+	@Override
+	public void dispose() {
+    	if (lastUncaughtException != null) {
+			return;
 		}
-		return true;
-		
+	    isExitRequested = true;
+		synchronized (exitDoneMonitor) {
+			synchronized (shotRequestedMonitor) {
+				shotRequestedMonitor.notifyAll(); // this is a hack, see run()
+			}
+			
+			while (!isExitDone) {
+				try {
+					exitDoneMonitor.wait();
+				} catch (InterruptedException e) {}
+			}
+		}
+	}
+	
+	private void doDispose() {
+		try {
+			this.canvas.cleanup();
+	        isExitDone = true;
+	        synchronized (exitDoneMonitor) {
+	        	this.exitDoneMonitor.notify();	
+			}
+		} catch (Exception e) {
+			log.error("Error disposing canvas resources", e);
+		}
 	}
 
 	@Override
