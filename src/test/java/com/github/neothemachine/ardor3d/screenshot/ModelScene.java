@@ -68,7 +68,7 @@ public class ModelScene {
 		return this.mesh;
 	}
 
-	private static Node loadMesh(File model) throws IOException {
+	public static Node loadMesh(File model) throws IOException {
 		URL modelUrlDir;
 		try {
 			modelUrlDir = new URL("file:" + model.getParent());
