@@ -6,13 +6,15 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.concurrent.Callable;
 
+import javax.management.RuntimeErrorException;
+
+import org.lwjgl.LWJGLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ardor3d.framework.Canvas;
 import com.ardor3d.framework.DisplaySettings;
 import com.ardor3d.framework.Scene;
-import com.ardor3d.framework.lwjgl.LwjglHeadlessCanvas;
 import com.ardor3d.intersection.PickResults;
 import com.ardor3d.math.Ray3;
 import com.ardor3d.renderer.Renderer;
@@ -42,10 +44,10 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 	private final Collection<UncaughtExceptionHandler> uncaughtExceptionHandlers = new LinkedList<UncaughtExceptionHandler>();
 
 	private final IntDimension size;
-	private final LwjglHeadlessCanvas canvas;
-	private final Renderer renderer;
+	private LwjglHeadlessCanvas canvas;
+	private Renderer renderer;
 
-	private final Canvas canvasWrapper;
+	private Canvas canvasWrapper;
 
 	private final Node root = new Node();
 
@@ -64,15 +66,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 	public LwjglHeadlessScreenshotCanvas(IntDimension size) {
 
 		this.size = size;
-		int aaSamples = 0;
-
-		final DisplaySettings settings = new DisplaySettings(size.getWidth(),
-				size.getHeight(), 24, 1, 8, 8, 0, aaSamples, false, false);
-
-		this.canvas = new LwjglHeadlessCanvas(settings, this);
-		this.canvasWrapper = new LwjglHeadlessCanvasWrapper(this.canvas);
-		this.renderer = this.canvas.getRenderer();
-
+				
 		GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
 				.setExecuteMultiple(true);
 		GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER)
@@ -157,7 +151,8 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 				throw new IllegalStateException(
 						"Another screenshot is already in progress");
 			}
-			// this.canvas.getCanvasRenderer().makeCurrentContext();
+			// canvas.getCanvasRenderer().makeCurrentContext();
+			// ^ not necessary, as canvas.draw() already does that 
 			isShotRequested = true;
 			shotRequestedMonitor.notifyAll();
 		}
@@ -218,7 +213,16 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 
 	@Override
 	public void run() {
-		// canvasRenderer.releaseCurrentContext();
+		
+		int aaSamples = 0;
+		
+		final DisplaySettings settings = new DisplaySettings(size.getWidth(),
+				size.getHeight(), 24, 1, 8, 8, 0, aaSamples, false, false);
+
+		this.canvas = new LwjglHeadlessCanvas(settings, this);
+		this.canvasWrapper = new LwjglHeadlessCanvasWrapper(this.canvas);
+		this.renderer = this.canvas.getRenderer();
+		
 		while (!isExitRequested) {
 			synchronized (shotRequestedMonitor) {
 				while (!isShotRequested && !isExitRequested) {
