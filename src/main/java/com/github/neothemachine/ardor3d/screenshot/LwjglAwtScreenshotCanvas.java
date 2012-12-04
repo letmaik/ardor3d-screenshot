@@ -3,6 +3,8 @@ package com.github.neothemachine.ardor3d.screenshot;
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 import javax.swing.JFrame;
@@ -47,7 +49,12 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
     private final Node root = new Node();
     
     private boolean isShotRequested = false;
-    private final Object shotFinishedMonitor = new Object();    
+    private final Object shotFinishedMonitor = new Object();   
+    
+    private Exception lastUncaughtException = null;
+    
+    private final List<UncaughtExceptionHandler> uncaughtExceptionHandlers =
+    		new LinkedList<UncaughtExceptionHandler>();
 
 	public LwjglAwtScreenshotCanvas(IntDimension size) {
 		this.size = size;
@@ -56,8 +63,9 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
 	
 	@Override
 	public void addUncaughtExceptionHandler(UncaughtExceptionHandler eh) {
-		// FIXME what happens if there's an Exception in the AWT-EventQueue thread? (renderUnto())?
+		this.uncaughtExceptionHandlers.add(eh);
 	}
+	
 	
 	@Override
 	public IntDimension getSize() {
@@ -94,40 +102,56 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
             StatCollector.update();
         }
        
-        GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
-        	.execute();
+        try {
+        	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
+        		.execute();
+        } catch (Exception e) {
+        	lastUncaughtException = e;
+        }
     }
     
     // called in AWT-EventQueue thread
-    public boolean renderUnto(final Renderer renderer) {    	
+    public boolean renderUnto(final Renderer renderer) {
 
-    	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER)
-                .execute(renderer);
-    	
-    	// necessary because internal ardor3d code relies on this queue
-    	// it happens after our own queue so that dispose() works correctly
-    	// see http://ardor3d.com/forums/viewtopic.php?f=13&t=1020&p=16253#p16253
-    	GameTaskQueueManager.getManager(canvas.getCanvasRenderer().getRenderContext()).
-    		getQueue(GameTaskQueue.RENDER).execute(renderer);
-        
-        // Clean up card garbage such as textures, vbos, etc.
-        ContextGarbageCollector.doRuntimeCleanup(renderer);
-        
-        // obscured parts of a window might result in garbage, so we bring it to the front
-        // see http://www.opengl.org/archives/resources/faq/technical/rasterization.htm#rast0070
-        frame.toFront();
-
-    	root.draw(renderer);
-
-        if (isShotRequested) {
-            // force any waiting scene elements to be rendered.
-            renderer.renderBuckets();
-            ScreenExporter.exportCurrentScreen(canvas.getCanvasRenderer().getRenderer(), _screenShotExp);
-            synchronized (shotFinishedMonitor) {
-            	isShotRequested = false;
-            	this.shotFinishedMonitor.notifyAll();
-			}
-        }
+    	try {
+	    	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER)
+	                .execute(renderer);
+	    	
+	    	// necessary because internal ardor3d code relies on this queue
+	    	// it happens after our own queue so that dispose() works correctly
+	    	// see http://ardor3d.com/forums/viewtopic.php?f=13&t=1020&p=16253#p16253
+	    	GameTaskQueueManager.getManager(canvas.getCanvasRenderer().getRenderContext()).
+	    		getQueue(GameTaskQueue.RENDER).execute(renderer);
+	        
+	        // Clean up card garbage such as textures, vbos, etc.
+	        ContextGarbageCollector.doRuntimeCleanup(renderer);
+	        
+	        // obscured parts of a window might result in garbage, so we bring it to the front
+	        // see http://www.opengl.org/archives/resources/faq/technical/rasterization.htm#rast0070
+	        frame.toFront();
+	
+	    	root.draw(renderer);
+	
+	        if (isShotRequested) {
+	            // force any waiting scene elements to be rendered.
+	            renderer.renderBuckets();
+	            ScreenExporter.exportCurrentScreen(canvas.getCanvasRenderer().getRenderer(), _screenShotExp);
+	            synchronized (shotFinishedMonitor) {
+	            	isShotRequested = false;
+	            	this.shotFinishedMonitor.notifyAll();
+				}
+	        }
+    	} catch (Exception e) {
+    		log.error(e.getMessage(), e);
+    		lastUncaughtException = e;
+    		if (isShotRequested) {
+        		// wake up takeShot() on error
+    			synchronized (shotFinishedMonitor) {
+    				isShotRequested = false;
+    				shotFinishedMonitor.notifyAll();
+    			}
+    		}
+    	}
         return true;
     }
 	
@@ -219,8 +243,16 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
 	    		} catch (InterruptedException e) {
 	    		}
         	}
+        	
+    		if (lastUncaughtException != null) {
+    			for (UncaughtExceptionHandler eh : uncaughtExceptionHandlers) {
+    				eh.uncaughtException(null, lastUncaughtException);
+    			}
+    			dispose();
+    			throw new Ardor3DRenderException(lastUncaughtException);
+    		}
 		}
-		
+			
     	return _screenShotExp.getLastImage();
     }
 
