@@ -29,8 +29,6 @@ import com.ardor3d.util.screen.ScreenExporter;
 /**
  * Work in progress
  * 
- * TODO this class should be properly threaded for each instance so that
- * multiple instances can be used (by any calling threads)
  * 
  * @author maik
  * 
@@ -101,6 +99,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 					@Override
 					public void uncaughtException(Thread t, Throwable e) {
 						log.error(e.getMessage(), e);
+						isShotRequested = false;
 						lastUncaughtException = e;
 						// wake up takeShot() on error
 						synchronized (shotFinishedMonitor) {
@@ -162,9 +161,9 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 					shotFinishedMonitor.wait();
 				} catch (InterruptedException e) {
 				}
-				if (lastUncaughtException != null) {
-					throw new Ardor3DRenderException(lastUncaughtException);
-				}
+			}
+			if (lastUncaughtException != null) {
+				throw new Ardor3DRenderException(lastUncaughtException);
 			}
 		}
 
@@ -178,7 +177,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 
 	@Override
 	public boolean renderUnto(Renderer renderer) {
-
+		
 		GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
 				.execute();
 
@@ -196,7 +195,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 		ContextGarbageCollector.doRuntimeCleanup(renderer);
 
 		root.draw(renderer);
-
+		
 		if (isShotRequested) {
 			// force any waiting scene elements to be rendered.
 			renderer.renderBuckets();
