@@ -8,6 +8,12 @@ import java.util.Set;
 
 import com.ardor3d.scenegraph.Node;
 
+/**
+ * Immutable state of a canvas.
+ * 
+ * @author maik
+ *
+ */
 public class CanvasState {
 
 	private final Map<File, Node> meshesLoaded;

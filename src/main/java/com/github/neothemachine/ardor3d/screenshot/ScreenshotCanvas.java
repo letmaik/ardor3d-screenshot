@@ -25,6 +25,11 @@ public interface ScreenshotCanvas extends UpdateableCanvas {
 	 */
 	void dispose();
 
+	/**
+	 * Listen for any exception thrown by the canvas.
+	 * This is a relay for ScreenshotCanvasPool to free its resources (kill broken canvases).
+	 * @param eh
+	 */
 	void addUncaughtExceptionHandler(UncaughtExceptionHandler eh);
 
 }
