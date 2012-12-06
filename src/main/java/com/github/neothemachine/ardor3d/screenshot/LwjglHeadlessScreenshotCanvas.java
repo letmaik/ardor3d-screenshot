@@ -25,6 +25,7 @@ import com.ardor3d.util.ContextGarbageCollector;
 import com.ardor3d.util.GameTaskQueue;
 import com.ardor3d.util.GameTaskQueueManager;
 import com.ardor3d.util.screen.ScreenExporter;
+import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
 
 /**
  * Work in progress
@@ -235,10 +236,12 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 					}
 				}
 			}
-			isShotRequested = false;
-			this.canvas.draw();
-			isShotRequested = true;
-			this.canvas.draw();
+			if (!isExitRequested) {
+				isShotRequested = false;
+				this.canvas.draw();
+				isShotRequested = true;
+				this.canvas.draw();
+			}
 		}
 		this.doDispose();
 	}
@@ -264,7 +267,15 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 	}
 
 	private void doDispose() {
+		// render one last empty frame, as required (see dispose() javadoc)
+		this.queueSceneUpdate(new SceneGraphUpdate() {
+			@Override
+			public void update(Node root) {
+				root.detachAllChildren();
+			}
+		});
 		try {
+			this.canvas.draw();
 			this.canvas.cleanup();
 			isExitDone = true;
 			synchronized (exitDoneMonitor) {
