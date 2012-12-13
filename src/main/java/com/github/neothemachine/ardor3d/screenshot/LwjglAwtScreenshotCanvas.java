@@ -7,6 +7,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+import javax.inject.Inject;
 import javax.swing.JFrame;
 
 import org.lwjgl.LWJGLException;
@@ -34,7 +35,7 @@ import com.ardor3d.util.ReadOnlyTimer;
 import com.ardor3d.util.Timer;
 import com.ardor3d.util.screen.ScreenExporter;
 import com.ardor3d.util.stat.StatCollector;
-import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.CanvasUpdate;
+import com.google.inject.assistedinject.Assisted;
 
 public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanvas, Updater, Scene {
 	private static final Logger log = LoggerFactory.getLogger(LwjglAwtScreenshotCanvas.class);	
@@ -56,9 +57,10 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
     private final List<UncaughtExceptionHandler> uncaughtExceptionHandlers =
     		new LinkedList<UncaughtExceptionHandler>();
 
-	public LwjglAwtScreenshotCanvas(IntDimension size) {
+    @Inject
+	public LwjglAwtScreenshotCanvas(@Assisted IntDimension size, @Samples int aaSamples) {
 		this.size = size;
-    	start(size, 0); // TODO samples
+    	start(size, aaSamples);
 	}
 	
 	@Override

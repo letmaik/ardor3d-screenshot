@@ -1,20 +1,19 @@
 package com.github.neothemachine.ardor3d.screenshot;
 
+import com.github.neothemachine.ardor3d.screenshot.ScreenshotCanvas.Samples;
 import com.github.neothemachine.ardor3d.screenshot.ScreenshotCanvasPool.MaxCanvases;
 import com.github.neothemachine.ardor3d.screenshot.ScreenshotCanvasPool.ScreenshotCanvasFactory;
-import com.google.inject.Binder;
-import com.google.inject.Module;
+import com.google.inject.AbstractModule;
+import com.google.inject.assistedinject.FactoryModuleBuilder;
 
-public class LwjglModule implements Module {
+public class LwjglModule extends AbstractModule {
 	@Override
-	public void configure(Binder binder) {
-		binder.bind(ScreenshotCanvasFactory.class).toInstance(new ScreenshotCanvasFactory() {
-			@Override
-			public ScreenshotCanvas create(IntDimension size) {
-//				return new LwjglAwtScreenshotCanvas(size);
-				return new LwjglHeadlessScreenshotCanvas(size);
-			}
-		});
-		binder.bindConstant().annotatedWith(MaxCanvases.class).to(1);
+	protected void configure() {
+		install(new FactoryModuleBuilder().implement(ScreenshotCanvas.class,
+				LwjglAwtScreenshotCanvas.class).build(
+//				LwjglHeadlessScreenshotCanvas.class).build(
+				ScreenshotCanvasFactory.class));
+		bindConstant().annotatedWith(MaxCanvases.class).to(1);
+		bindConstant().annotatedWith(Samples.class).to(4);
 	}
 }

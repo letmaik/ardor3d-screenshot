@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.concurrent.Callable;
 
+import javax.inject.Inject;
 import javax.management.RuntimeErrorException;
 
 import org.lwjgl.LWJGLException;
@@ -26,6 +27,7 @@ import com.ardor3d.util.GameTaskQueue;
 import com.ardor3d.util.GameTaskQueueManager;
 import com.ardor3d.util.screen.ScreenExporter;
 import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
+import com.google.inject.assistedinject.Assisted;
 
 /**
  * Work in progress
@@ -62,9 +64,13 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 	private final Object shotRequestedMonitor = new Object();
 	private final Object shotFinishedMonitor = new Object();
 
-	public LwjglHeadlessScreenshotCanvas(IntDimension size) {
+	private final int aaSamples;
+
+	@Inject
+	public LwjglHeadlessScreenshotCanvas(@Assisted IntDimension size, @Samples int aaSamples) {
 
 		this.size = size;
+		this.aaSamples = aaSamples;
 				
 		GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
 				.setExecuteMultiple(true);
@@ -213,8 +219,6 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 
 	@Override
 	public void run() {
-		
-		int aaSamples = 0;
 		
 		final DisplaySettings settings = new DisplaySettings(size.getWidth(),
 				size.getHeight(), 24, 1, 8, 8, 0, aaSamples, false, false);

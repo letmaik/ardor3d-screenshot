@@ -2,8 +2,20 @@ package com.github.neothemachine.ardor3d.screenshot;
 
 import java.awt.image.BufferedImage;
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
+import com.google.inject.BindingAnnotation;
 
 public interface ScreenshotCanvas extends UpdateableCanvas {
+	
+	/**
+	 * Annotation for samples argument in canvas implementation.
+	 *
+	 */
+	@BindingAnnotation
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface Samples {}
 
 	IntDimension getSize();
 	
