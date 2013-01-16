@@ -21,10 +21,15 @@ import com.ardor3d.math.Ray3;
 import com.ardor3d.renderer.Renderer;
 import com.ardor3d.renderer.TextureRendererFactory;
 import com.ardor3d.renderer.lwjgl.LwjglTextureRendererProvider;
+import com.ardor3d.renderer.state.RenderState.StateType;
+import com.ardor3d.renderer.state.TextureState;
+import com.ardor3d.scenegraph.Mesh;
 import com.ardor3d.scenegraph.Node;
+import com.ardor3d.scenegraph.Spatial;
 import com.ardor3d.util.ContextGarbageCollector;
 import com.ardor3d.util.GameTaskQueue;
 import com.ardor3d.util.GameTaskQueueManager;
+import com.ardor3d.util.TextureKey;
 import com.ardor3d.util.screen.ScreenExporter;
 import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
 import com.google.inject.assistedinject.Assisted;
@@ -203,6 +208,15 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 
 		root.draw(renderer);
 		
+//		Node meshGeometry = (Node) root.getChild("mesh1-geometry");
+//		for (Spatial mesh : meshGeometry.getChildren()) {
+//			TextureState s = (TextureState) mesh.getLocalRenderState(StateType.Texture);
+//			if (s != null) {
+//				TextureKey k = s.getTexture().getTextureKey();
+//				// inspect k
+//			}
+//		}
+		
 		if (isShotRequested) {
 			// force any waiting scene elements to be rendered.
 			renderer.renderBuckets();
@@ -281,13 +295,13 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 		try {
 			this.canvas.draw();
 			this.canvas.cleanup();
-			isExitDone = true;
-			synchronized (exitDoneMonitor) {
-				this.exitDoneMonitor.notify();
-			}
 		} catch (Exception e) {
 			log.error("Error disposing canvas resources", e);
 		}
+		isExitDone = true;
+        synchronized (exitDoneMonitor) {
+            this.exitDoneMonitor.notify();
+        }
 	}
 
 	@Override
