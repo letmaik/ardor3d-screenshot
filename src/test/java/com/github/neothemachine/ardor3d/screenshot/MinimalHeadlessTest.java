@@ -70,9 +70,24 @@ public class MinimalHeadlessTest implements Scene {
 			
 			// why do I need this??
 			TextureManager.cleanAllTextures(null, null);
+			
+			
+			
+			// simulate that we need a new resolution
+			if (Math.random() > 0.5) {
+				// kill the old canvas
+				canvas.cleanup();
+				
+				// create new canvas
+				final DisplaySettings settings = new DisplaySettings(420+x, 400, 24, 1,
+						8, 8, 0, 0, false, false);
+				canvases[x % 3] = new LwjglHeadlessCanvas(settings, this);
+				
+				System.out.println("old canvas killed and new canvas spawned");
+			}
 		}	
 		
-
+		
 	}
 
 	@Override
