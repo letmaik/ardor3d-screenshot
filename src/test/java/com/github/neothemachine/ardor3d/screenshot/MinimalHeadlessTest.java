@@ -16,58 +16,80 @@ import com.ardor3d.intersection.PickResults;
 import com.ardor3d.math.Ray3;
 import com.ardor3d.renderer.Renderer;
 import com.ardor3d.scenegraph.Node;
+import com.ardor3d.util.ContextGarbageCollector;
+import com.ardor3d.util.TextureManager;
 import com.ardor3d.util.screen.ScreenExporter;
 
 public class MinimalHeadlessTest implements Scene {
 
-    private final Node root = new Node();
-    private final ScreenShotBufferExporter screenShotExp = new ScreenShotBufferExporter();
+	private final Node root = new Node();
+	private final ScreenShotBufferExporter screenShotExp = new ScreenShotBufferExporter();
 
-    @Test
-    public void testHeadless() throws IOException, InterruptedException {
+//	static {
+//		System.setProperty("ardor3d.useMultipleContexts", "true");
+//	}
 
-        AWTImageLoader.registerLoader();
+	@Test
+	public void testHeadless() throws IOException, InterruptedException {
 
-        final DisplaySettings settings = new DisplaySettings(400, 400, 24, 1,
-                8, 8, 0, 0, false, false);
+		AWTImageLoader.registerLoader();
+		
+		final DisplaySettings settings1 = new DisplaySettings(400, 400, 24, 1,
+				8, 8, 0, 0, false, false);
+		final DisplaySettings settings2 = new DisplaySettings(410, 400, 24, 1,
+				8, 8, 0, 0, false, false);
+		final DisplaySettings settings3 = new DisplaySettings(420, 400, 24, 1,
+				8, 8, 0, 0, false, false);
 
-        for (int x = 0; x < 5; x++) {
+		LwjglHeadlessCanvas[] canvases = {
+				new LwjglHeadlessCanvas(settings1, this),
+				new LwjglHeadlessCanvas(settings2, this),
+				new LwjglHeadlessCanvas(settings3, this) 
+				};		
 
-            LwjglHeadlessCanvas canvas = new LwjglHeadlessCanvas(settings, this);
-            Canvas canvasWrapper = new LwjglHeadlessCanvasWrapper(canvas);
+		for (int x = 0; x < 10; x++) {
+			
+			LwjglHeadlessCanvas canvas = canvases[x % 3];
+			Canvas canvasWrapper = new LwjglHeadlessCanvasWrapper(canvas);
 
-            File model = getResource("table/table.dae");
-            ModelScene scene = new ModelScene(model);
-            scene.initScene(root);
-            scene.initCanvas(canvasWrapper);
-            root.updateGeometricState(0);
+			File model = getResource("table/table.dae");
+			ModelScene scene = new ModelScene(model);
+			scene.initScene(root);
+			scene.initCanvas(canvasWrapper);
+			root.updateGeometricState(0);
 
-            canvas.draw();
+			canvas.draw();
 
-            ScreenExporter.exportCurrentScreen(canvasWrapper
-                    .getCanvasRenderer().getRenderer(), screenShotExp);
+			ScreenExporter.exportCurrentScreen(canvasWrapper
+					.getCanvasRenderer().getRenderer(), screenShotExp);
 
-            ImageIO.write(screenShotExp.getLastImage(), "png", new File("testm"
-                    + x + ".png"));
+			ImageIO.write(screenShotExp.getLastImage(), "png", new File("testm"
+					+ x + ".png"));
 
-            canvas.cleanup();
-        }
-    }
+			root.detachAllChildren();
+			
+			// why do I need this??
+			TextureManager.cleanAllTextures(null, null);
+		}	
+		
 
-    @Override
-    public boolean renderUnto(Renderer renderer) {
-        root.draw(renderer);
-        renderer.renderBuckets();
-        return true;
-    }
+	}
 
-    @Override
-    public PickResults doPick(Ray3 pickRay) {
-        throw new UnsupportedOperationException();
-    }
+	@Override
+	public boolean renderUnto(Renderer renderer) {
+		ContextGarbageCollector.doRuntimeCleanup(renderer);
+		root.draw(renderer);
+		renderer.renderBuckets();
+		return true;
+	}
 
-    private File getResource(String name) {
-        return FileUtils.toFile(getClass().getClassLoader().getResource(name));
-    }
+	@Override
+	public PickResults doPick(Ray3 pickRay) {
+		throw new UnsupportedOperationException();
+	}
+
+	private File getResource(String name) {
+		return FileUtils.toFile(getClass().getClassLoader().getResource(name));
+	}
 
 }
