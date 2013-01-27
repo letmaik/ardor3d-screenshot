@@ -115,7 +115,7 @@
             <layout>default</layout>
         </repository>
         <repository>
-            <id>ardor3d</id>
+            <id>ardor3d-thirdparty</id>
             <name>Ardor3D repository</name>
             <url>http://ardor3d.com:8081/nexus/content/repositories/thirdparty</url>
             <layout>default</layout>
