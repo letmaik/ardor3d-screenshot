@@ -7,13 +7,19 @@ import com.google.inject.AbstractModule;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 
 public class LwjglModule extends AbstractModule {
+	
+	static {
+		System.setProperty("org.lwjgl.opengl.Display.allowSoftwareOpenGL", "true");
+		System.setProperty("org.lwjgl.opengl.Display.noinput", "true");
+	}
+	
 	@Override
 	protected void configure() {
 		install(new FactoryModuleBuilder().implement(ScreenshotCanvas.class,
-				LwjglAwtScreenshotCanvas.class).build(
-//				LwjglHeadlessScreenshotCanvas.class).build(
+//				LwjglAwtScreenshotCanvas.class).build(
+				LwjglHeadlessScreenshotCanvas.class).build(
 				ScreenshotCanvasFactory.class));
-		bindConstant().annotatedWith(MaxCanvases.class).to(1);
+		bindConstant().annotatedWith(MaxCanvases.class).to(2);
 		bindConstant().annotatedWith(Samples.class).to(4);
 	}
 }
