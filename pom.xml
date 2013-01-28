@@ -109,9 +109,15 @@
     <repositories>
     <!-- remove once ardor3d is on Central -->
         <repository>
-            <id>ardor3d</id>
+            <id>ardor3d-releases</id>
             <name>Ardor3D repository</name>
             <url>http://ardor3d.com:8081/nexus/content/repositories/releases</url>
+            <layout>default</layout>
+        </repository>
+        <repository>
+            <id>ardor3d-snapshots</id>
+            <name>Ardor3D repository</name>
+            <url>http://ardor3d.com:8081/nexus/content/repositories/snapshots</url>
             <layout>default</layout>
         </repository>
     </repositories>
