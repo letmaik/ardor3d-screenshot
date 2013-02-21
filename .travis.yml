@@ -1,5 +1,13 @@
 language: java
 
+env:
+  global:
+    - SONATYPE_USERNAME=neothemachine
+    - secure: "ZKKtEvduVNJpCHJ96cxKohZQvz9OxNMsGbgRY6TsOvv69lS6J/ZQcHVuR4M5\nlrUssFQVxwcYglnXPEwmDG5neVYFdb5y5vbrK74orYWpt+Wmpifk5U3x8zqO\ndMZbv9bCup558fR0lmJ2MAXdpAJUFJWKvt8AR5Gq4UNQ5DJalsc="
+
 before_install:
   - "export DISPLAY=:99.0"
   - "sh -e /etc/init.d/xvfb start"
+
+after_success:
+  - "[[ $TRAVIS_BRANCH == \"master\" ]] && { python travis/addServer.py; mvn clean deploy -DskipTests=true --settings ~/.m2/mySettings.xml; };"
