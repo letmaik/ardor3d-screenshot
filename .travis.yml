@@ -10,4 +10,5 @@ before_install:
   - "sh -e /etc/init.d/xvfb start"
 
 after_success:
-  - "[[ $TRAVIS_BRANCH == \"master\" ]] && { python travis/addServer.py; mvn clean deploy -DskipTests=true --settings ~/.m2/mySettings.xml; };"
+  - python travis/addServer.py
+  - mvn clean deploy -DskipTests=true --settings ~/.m2/mySettings.xml
