@@ -177,7 +177,7 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
 		});
 
         final JoglCanvasRenderer canvasRenderer = new JoglCanvasRenderer(this);
-		canvas = new JoglNewtWindow(canvasRenderer, settings,false, true, false, true);
+		canvas = new JoglNewtWindow(canvasRenderer, settings,false, true, true, false);
         
         canvas.setVisible(true);
                
