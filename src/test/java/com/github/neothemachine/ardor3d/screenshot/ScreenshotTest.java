@@ -68,12 +68,15 @@ public class ScreenshotTest {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					BufferedImage i = renderEmpty(new IntDimension(500, 600 + 2*y));
+					try {
+						BufferedImage i = renderEmpty(new IntDimension(500, 600 + 2*y));
+						assertEquals(i.getWidth(), 500);
+						assertEquals(i.getHeight(), 600 + 2*y);
+					} finally {
+						l.countDown();
+					}
 //					waiter.assertEquals(i.getWidth(), 500);
 //					waiter.assertEquals(i.getHeight(), 600 + y);
-					assertEquals(i.getWidth(), 500);
-					assertEquals(i.getHeight(), 600 + 2*y);
-					l.countDown();
 				}
 			}).start();
 		}
@@ -90,15 +93,18 @@ public class ScreenshotTest {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					BufferedImage image = renderScene(new IntDimension(500, 600 + 2*y));
-					assertEquals(image.getWidth(), 500);
-					assertEquals(image.getHeight(), 600 + 2*y);
 					try {
-						ImageIO.write(image, "png", new File("test" + y + ".png"));
-					} catch (IOException e) {
-						e.printStackTrace();
+						BufferedImage image = renderScene(new IntDimension(500, 600 + 2*y));
+						assertEquals(image.getWidth(), 500);
+						assertEquals(image.getHeight(), 600 + 2*y);
+						try {
+							ImageIO.write(image, "png", new File("test" + y + ".png"));
+						} catch (IOException e) {
+							throw new RuntimeException(e);
+						}
+					} finally {
+						l.countDown();
 					}
-					l.countDown();
 				}
 			}).start();
 		}
