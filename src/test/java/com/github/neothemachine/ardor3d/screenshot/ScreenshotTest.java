@@ -7,6 +7,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -57,60 +59,54 @@ public class ScreenshotTest {
 	}
 		
 	@Test
-	public void testEmpty() throws InterruptedException {
-		
-//		final Waiter waiter = new Waiter();
+	public void testEmpty() throws Throwable {
 		
 		int count = 10;
 		final CountDownLatch l = new CountDownLatch(count);
+		List<AsynchTester> testers = new LinkedList<AsynchTester>();
 		for (int x=0; x < count; ++x) {
 			final int y = x;
-			new Thread(new Runnable() {
+			AsynchTester tester = new AsynchTester(new Runnable() {
 				@Override
 				public void run() {
-					try {
-						BufferedImage i = renderEmpty(new IntDimension(500, 600 + 2*y));
-						assertEquals(i.getWidth(), 500);
-						assertEquals(i.getHeight(), 600 + 2*y);
-					} catch (Exception e) {
-						e.printStackTrace();
-						fail(e.getMessage());
-					} finally {
-						l.countDown();
-					}
-//					waiter.assertEquals(i.getWidth(), 500);
-//					waiter.assertEquals(i.getHeight(), 600 + y);
+					BufferedImage i = renderEmpty(new IntDimension(500, 600 + 2*y));
+					assertEquals(i.getWidth(), 500);
+					assertEquals(i.getHeight(), 600 + 2*y);
 				}
-			}).start();
+			}, l);
+			testers.add(tester);
+			tester.start();
 		}
 		l.await();
+		AsynchTester.rethrow(testers);
 	}
 	
 	@Test
-	public void testModel() throws InterruptedException {
+	public void testModel() throws Throwable {
 		
 		int count = 5;
 		final CountDownLatch l = new CountDownLatch(count);
+		List<AsynchTester> testers = new LinkedList<AsynchTester>();
 		for (int x=0; x < count; ++x) {
 			final int y = x;
-			new Thread(new Runnable() {
+			AsynchTester tester = new AsynchTester(new Runnable() {
 				@Override
 				public void run() {
+					BufferedImage image = renderScene(new IntDimension(500, 600 + 2*y));
+					assertEquals(image.getWidth(), 500);
+					assertEquals(image.getHeight(), 600 + 2*y);
 					try {
-						BufferedImage image = renderScene(new IntDimension(500, 600 + 2*y));
-						assertEquals(image.getWidth(), 500);
-						assertEquals(image.getHeight(), 600 + 2*y);
 						ImageIO.write(image, "png", new File("test" + y + ".png"));
-					} catch (Exception e) {
-						e.printStackTrace();
-						fail(e.getMessage());
-					} finally {
-						l.countDown();
+					} catch (IOException e) {
+						throw new RuntimeException(e);
 					}
 				}
-			}).start();
+			},l);
+			testers.add(tester);
+			tester.start();
 		}
 		l.await();
+		AsynchTester.rethrow(testers);
 	}
 	
 	/**
@@ -458,4 +454,38 @@ public class ScreenshotTest {
 	private File getResource(String name) {
 		return FileUtils.toFile(getClass().getClassLoader().getResource(name));
 	}
+}
+
+class AsynchTester {
+    private Thread thread;
+    private volatile Throwable exc; 
+
+    public AsynchTester(final Runnable runnable, final CountDownLatch latch){
+        thread = new Thread(new Runnable(){
+            public void run(){
+                try {            
+                    runnable.run();
+                } catch (Throwable e){
+                    exc = e;
+                } finally {
+                	latch.countDown();
+                }
+            }
+        });
+    }
+
+    public void start(){
+        thread.start();
+    }
+
+    public void rethrowErrors() throws Throwable {
+        if (exc != null)
+            throw exc;
+    }
+    
+    public static void rethrow(List<AsynchTester> testers) throws Throwable {
+		for (AsynchTester t : testers) {
+			t.rethrowErrors();
+		}
+    }
 }
