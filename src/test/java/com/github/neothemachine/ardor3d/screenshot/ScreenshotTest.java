@@ -1,6 +1,6 @@
 package com.github.neothemachine.ardor3d.screenshot;
 
-import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.*;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -72,6 +72,9 @@ public class ScreenshotTest {
 						BufferedImage i = renderEmpty(new IntDimension(500, 600 + 2*y));
 						assertEquals(i.getWidth(), 500);
 						assertEquals(i.getHeight(), 600 + 2*y);
+					} catch (Exception e) {
+						e.printStackTrace();
+						fail(e.getMessage());
 					} finally {
 						l.countDown();
 					}
@@ -97,11 +100,10 @@ public class ScreenshotTest {
 						BufferedImage image = renderScene(new IntDimension(500, 600 + 2*y));
 						assertEquals(image.getWidth(), 500);
 						assertEquals(image.getHeight(), 600 + 2*y);
-						try {
-							ImageIO.write(image, "png", new File("test" + y + ".png"));
-						} catch (IOException e) {
-							throw new RuntimeException(e);
-						}
+						ImageIO.write(image, "png", new File("test" + y + ".png"));
+					} catch (Exception e) {
+						e.printStackTrace();
+						fail(e.getMessage());
 					} finally {
 						l.countDown();
 					}
