@@ -36,17 +36,10 @@ import com.ardor3d.util.stat.StatCollector;
 import com.google.inject.assistedinject.Assisted;
 
 /**
- * Experimental JoglNewtWindow screenshot canvas.
- * 
- * Can also be used offscreen, although ATM only with a hack:
- * 
- * Add the following to com.ardor3d.framework.jogl.CapsUtil#getCapsForSettings:
- * 
- * caps.setOnscreen(false);
- * caps.setPBuffer(true); // false produces strange results
+ * Experimental JoglNewtWindow offscreen screenshot canvas (uses pbuffers).
  * 
  */
-public class JoglNewtScreenshotCanvas implements ScreenshotCanvas, ResizableCanvas, Updater, Scene {
+public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCanvas*/, Updater, Scene {
 	private static final Logger log = LoggerFactory.getLogger(JoglNewtScreenshotCanvas.class);	
 	
 	private IntDimension size;
@@ -82,7 +75,7 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
 		return size;
 	}
 	
-	@Override
+//	@Override
 	public void setSize(final IntDimension size) {
 		if (this.canvas.getWidth() != size.getWidth() || this.canvas.getHeight() != size.getHeight()) {
 			this.canvas.setSize(size.getWidth(), size.getHeight());
@@ -184,7 +177,7 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
 		});
 
         final JoglCanvasRenderer canvasRenderer = new JoglCanvasRenderer(this);
-		canvas = new JoglNewtWindow(canvasRenderer, settings);
+		canvas = new JoglNewtWindow(canvasRenderer, settings,false, true, true, false);
         
         canvas.setVisible(true);
                
