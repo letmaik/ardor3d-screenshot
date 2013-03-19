@@ -5,6 +5,7 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
 import javax.inject.Inject;
 
@@ -28,6 +29,7 @@ import com.ardor3d.scenegraph.Node;
 import com.ardor3d.util.Constants;
 import com.ardor3d.util.ContextGarbageCollector;
 import com.ardor3d.util.GameTaskQueue;
+import com.ardor3d.util.GameTaskQueue.ExecutionExceptionListener;
 import com.ardor3d.util.GameTaskQueueManager;
 import com.ardor3d.util.ReadOnlyTimer;
 import com.ardor3d.util.Timer;
@@ -57,11 +59,23 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
     
     private final List<UncaughtExceptionHandler> uncaughtExceptionHandlers =
     		new LinkedList<UncaughtExceptionHandler>();
+    
+	private final ExecutionExceptionListener executionExceptionListener = new ExecutionExceptionListener() {
+		@Override
+		public void executionException(ExecutionException e) {
+			lastUncaughtException = e;
+		}
+	};
 
     @Inject
 	public JoglNewtScreenshotCanvas(@Assisted IntDimension size, @Samples int aaSamples) {
 		this.size = size;
     	start(size, aaSamples);
+    	
+    	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE).
+    	    addExecutionExceptionListener(executionExceptionListener);
+    	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER).
+	        addExecutionExceptionListener(executionExceptionListener);
 	}
 	
 	@Override
@@ -105,12 +119,8 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
             StatCollector.update();
         }
        
-        try {
-        	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
+       	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
         		.execute();
-        } catch (Exception e) {
-        	lastUncaughtException = e;
-        }
     }
     
     // called in render thread
@@ -248,6 +258,11 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
 	@Override
 	public void dispose() {
 		try {
+	    	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE).
+    	       removeExecutionExceptionListener(executionExceptionListener);
+	    	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER).
+	           removeExecutionExceptionListener(executionExceptionListener);
+			
 			// render one last empty frame, as required (see dispose() javadoc)
 			this.queueSceneUpdate(new SceneGraphUpdate() {
 				@Override

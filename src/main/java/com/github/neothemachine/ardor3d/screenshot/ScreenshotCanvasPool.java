@@ -33,9 +33,9 @@ import com.google.inject.BindingAnnotation;
 public class ScreenshotCanvasPool<T> {
 
 	// TODO needed?
-//	static {
-//		System.setProperty("ardor3d.useMultipleContexts", "true");
-//	}
+	static {
+		System.setProperty("ardor3d.useMultipleContexts", "true");
+	}
 
 	public interface ScreenshotCanvasFactory {
 		ScreenshotCanvas create(IntDimension size);
@@ -133,6 +133,9 @@ public class ScreenshotCanvasPool<T> {
 				canvas.dispose();
 				inUse.remove(canvas);
 				unused.remove(canvas);
+				synchronized (ScreenshotCanvasPool.this) {
+					ScreenshotCanvasPool.this.notifyAll();
+				}
 			}
 		});
 		
