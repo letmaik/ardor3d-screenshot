@@ -42,7 +42,7 @@ import com.google.common.base.Predicate;
  *
  */
 //@Guice(modules = {LwjglModule.class})
-@Guice(modules = {JoglModule.class})
+@Guice(modules = {JoglModule.class}) 
 public class ScreenshotTest {
 
 	private final ScreenshotCanvasPool<CanvasState> pool;
