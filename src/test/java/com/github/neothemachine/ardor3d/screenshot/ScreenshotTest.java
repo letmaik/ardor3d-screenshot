@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 import com.ardor3d.framework.Canvas;
 import com.ardor3d.image.Texture;
-import com.ardor3d.image.util.AWTImageLoader;
+import com.ardor3d.image.util.awt.AWTImageLoader;
 import com.ardor3d.renderer.state.TextureState;
 import com.ardor3d.scenegraph.Node;
 import com.ardor3d.scenegraph.Spatial;
