@@ -22,6 +22,11 @@ public interface ScreenshotCanvas extends UpdateableCanvas {
 	
 	BufferedImage takeShot();
 	
+	/**
+	 * Run all pending queue actions without taking a screenshot.
+	 */
+	void runQueues();
+	
 	BasicPassManager getPassManager();
 
 	/**

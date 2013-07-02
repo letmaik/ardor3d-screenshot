@@ -9,6 +9,7 @@ import java.util.concurrent.ExecutionException;
 
 import javax.inject.Inject;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,6 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
     private final BasicPassManager passManager = new BasicPassManager();
     
     private boolean isShotRequested = false;
-    private final Object shotFinishedMonitor = new Object();   
     
     private Exception lastUncaughtException = null;
     
@@ -153,20 +153,13 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
 	            // force any waiting scene elements to be rendered.
 	            renderer.renderBuckets();
 	            ScreenExporter.exportCurrentScreen(canvas.getCanvasRenderer().getRenderer(), _screenShotExp);
-	            synchronized (shotFinishedMonitor) {
-	            	isShotRequested = false;
-	            	this.shotFinishedMonitor.notifyAll();
-				}
+	            isShotRequested = false;
 	        }
     	} catch (Exception e) {
     		log.error(e.getMessage(), e);
     		lastUncaughtException = e;
     		if (isShotRequested) {
-        		// wake up takeShot() on error
-    			synchronized (shotFinishedMonitor) {
-    				isShotRequested = false;
-    				shotFinishedMonitor.notifyAll();
-    			}
+   				isShotRequested = false;
     		}
     	}
         return true;
@@ -249,31 +242,35 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
      * @return
      * @throws Ardor3DRenderException on unexpected errors
      */
+	@Override
     public synchronized BufferedImage takeShot() {
-
+	    
         // only works after the 2nd frame
         _frameHandler.updateFrame();
         isShotRequested = true;
         _frameHandler.updateFrame();
-    	
-		synchronized (shotFinishedMonitor) {
-        	while (isShotRequested) {
-	    		try {
-	    			shotFinishedMonitor.wait();
-	    		} catch (InterruptedException e) {
-	    		}
-        	}
-        	
-    		if (lastUncaughtException != null) {
-    			for (UncaughtExceptionHandler eh : uncaughtExceptionHandlers) {
-    				eh.uncaughtException(null, lastUncaughtException);
-    			}
-    			dispose();
-    			throw new Ardor3DRenderException(lastUncaughtException);
-    		}
-		}
+		
+        checkException();
 			
     	return _screenShotExp.getLastImage();
+    }
+    
+    @Override
+    public synchronized void runQueues() {
+        
+        _frameHandler.updateFrame();
+        checkException();
+        
+    }
+    
+    private void checkException() {
+        if (lastUncaughtException != null) {
+            for (UncaughtExceptionHandler eh : uncaughtExceptionHandlers) {
+                eh.uncaughtException(null, lastUncaughtException);
+            }
+            dispose();
+            throw new Ardor3DRenderException(lastUncaughtException);
+        }
     }
 
 	@Override

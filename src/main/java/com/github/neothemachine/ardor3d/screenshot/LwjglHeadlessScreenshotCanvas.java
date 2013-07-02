@@ -9,6 +9,7 @@ import java.util.concurrent.Callable;
 import javax.inject.Inject;
 import javax.management.RuntimeErrorException;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.lwjgl.LWJGLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -319,6 +320,11 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
     @Override
     public BasicPassManager getPassManager() {
         return passManager;
+    }
+
+    @Override
+    public void runQueues() {
+        throw new NotImplementedException();
     }
 
 }

@@ -37,7 +37,6 @@ import com.ardor3d.util.ReadOnlyTimer;
 import com.ardor3d.util.Timer;
 import com.ardor3d.util.screen.ScreenExporter;
 import com.ardor3d.util.stat.StatCollector;
-import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
 import com.google.inject.assistedinject.Assisted;
 
 public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanvas, Updater, Scene {
@@ -54,8 +53,7 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
     
     private final BasicPassManager passManager = new BasicPassManager();
     
-    private boolean isShotRequested = false;
-    private final Object shotFinishedMonitor = new Object();   
+    private boolean isShotRequested = false;  
     
     private Exception lastUncaughtException = null;
     
@@ -147,20 +145,13 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
 	            // force any waiting scene elements to be rendered.
 	            renderer.renderBuckets();
 	            ScreenExporter.exportCurrentScreen(canvas.getCanvasRenderer().getRenderer(), _screenShotExp);
-	            synchronized (shotFinishedMonitor) {
-	            	isShotRequested = false;
-	            	this.shotFinishedMonitor.notifyAll();
-				}
+	            isShotRequested = false;
 	        }
     	} catch (Exception e) {
     		log.error(e.getMessage(), e);
     		lastUncaughtException = e;
     		if (isShotRequested) {
-        		// wake up takeShot() on error
-    			synchronized (shotFinishedMonitor) {
-    				isShotRequested = false;
-    				shotFinishedMonitor.notifyAll();
-    			}
+				isShotRequested = false;
     		}
     	}
         return true;
@@ -257,24 +248,27 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
         isShotRequested = true;
         _frameHandler.updateFrame();
     	
-		synchronized (shotFinishedMonitor) {
-        	while (isShotRequested) {
-	    		try {
-	    			shotFinishedMonitor.wait();
-	    		} catch (InterruptedException e) {
-	    		}
-        	}
-        	
-    		if (lastUncaughtException != null) {
-    			for (UncaughtExceptionHandler eh : uncaughtExceptionHandlers) {
-    				eh.uncaughtException(null, lastUncaughtException);
-    			}
-    			dispose();
-    			throw new Ardor3DRenderException(lastUncaughtException);
-    		}
-		}
+        checkException();
 			
     	return _screenShotExp.getLastImage();
+    }
+    
+    @Override
+    public void runQueues() {
+        
+        _frameHandler.updateFrame();
+        checkException();
+        
+    }
+    
+    private void checkException() {
+        if (lastUncaughtException != null) {
+            for (UncaughtExceptionHandler eh : uncaughtExceptionHandlers) {
+                eh.uncaughtException(null, lastUncaughtException);
+            }
+            dispose();
+            throw new Ardor3DRenderException(lastUncaughtException);
+        }
     }
 
 	@Override
