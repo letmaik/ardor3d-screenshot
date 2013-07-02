@@ -200,7 +200,7 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
         
         canvas.setVisible(true);
         
-        log.info("pbuffer-canvas created " + size.getWidth() + "x" + size.getHeight() + "x24"
+        log.info("FBO-canvas created " + size.getWidth() + "x" + size.getHeight() + "x24"
         		+ "(" + aaSamples + "x samples)");
                
         
@@ -289,7 +289,7 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
 			_frameHandler.updateFrame();
 	        canvas.close();
 	        
-	        log.info("pbuffer-canvas disposed (" + size.getWidth() + "x" + size.getHeight() + "x24)");
+	        log.info("FBO-canvas disposed (" + size.getWidth() + "x" + size.getHeight() + "x24)");
 
 		} catch (Exception e) {
 			log.error("Error disposing canvas resources", e);
