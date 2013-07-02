@@ -25,6 +25,8 @@ import com.ardor3d.math.Ray3;
 import com.ardor3d.renderer.Renderer;
 import com.ardor3d.renderer.TextureRendererFactory;
 import com.ardor3d.renderer.jogl.JoglTextureRendererProvider;
+import com.ardor3d.renderer.pass.BasicPassManager;
+import com.ardor3d.renderer.pass.RenderPass;
 import com.ardor3d.scenegraph.Node;
 import com.ardor3d.util.Constants;
 import com.ardor3d.util.ContextGarbageCollector;
@@ -51,6 +53,8 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
 
     public JoglNewtWindow canvas;
     private final Node root = new Node();
+    
+    private final BasicPassManager passManager = new BasicPassManager();
     
     private boolean isShotRequested = false;
     private final Object shotFinishedMonitor = new Object();   
@@ -121,6 +125,8 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
        
        	GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
         		.execute();
+       	
+       	passManager.updatePasses(0);
     }
     
     // called in render thread
@@ -139,7 +145,9 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
 	        // Clean up card garbage such as textures, vbos, etc.
 	        ContextGarbageCollector.doRuntimeCleanup(renderer);
 	        
-	    	root.draw(renderer);
+	        // TODO renderer.renderBuckets(); probably not needed anymore
+	        passManager.renderPasses(renderer);
+//	    	root.draw(renderer);
 	
 	        if (isShotRequested) {
 	            // force any waiting scene elements to be rendered.
@@ -185,6 +193,16 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
 	    			getQueue(GameTaskQueue.RENDER).setExecuteMultiple(true);
 			}
 		});
+        
+        // add default render pass
+        this.queueSceneUpdate(new SceneGraphUpdate() {
+            @Override
+            public void update(Node root) {
+                RenderPass pass = new RenderPass();
+                pass.add(root);
+                passManager.add(pass);
+            }
+        });
 
         final JoglCanvasRenderer canvasRenderer = new JoglCanvasRenderer(this);
 		canvas = new JoglNewtWindow(canvasRenderer, settings,false, false, false, true);
@@ -196,7 +214,7 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
                
         
         TextureRendererFactory.INSTANCE.setProvider(new JoglTextureRendererProvider());
-
+        
         _frameHandler.addUpdater(this);
         _frameHandler.addCanvas(canvas);
         
@@ -282,6 +300,11 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
 			log.error("Error disposing canvas resources", e);
 		}
 	}
+	
+    @Override
+    public BasicPassManager getPassManager() {
+        return passManager;
+    }
 	
 	@Override
 	public PickResults doPick(Ray3 pickRay) {

@@ -102,6 +102,11 @@
 			<artifactId>ardor3d-jogl</artifactId>
 			<version>0.9-SNAPSHOT</version>
 		</dependency>
+        <dependency>
+            <groupId>com.ardor3d</groupId>
+            <artifactId>ardor3d-effects</artifactId>
+            <version>0.9-SNAPSHOT</version>
+        </dependency>
 
 		<dependency>
 			<groupId>org.testng</groupId>

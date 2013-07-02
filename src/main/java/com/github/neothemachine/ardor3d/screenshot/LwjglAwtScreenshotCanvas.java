@@ -26,6 +26,8 @@ import com.ardor3d.math.Ray3;
 import com.ardor3d.renderer.Renderer;
 import com.ardor3d.renderer.TextureRendererFactory;
 import com.ardor3d.renderer.lwjgl.LwjglTextureRendererProvider;
+import com.ardor3d.renderer.pass.BasicPassManager;
+import com.ardor3d.renderer.pass.RenderPass;
 import com.ardor3d.scenegraph.Node;
 import com.ardor3d.util.Constants;
 import com.ardor3d.util.ContextGarbageCollector;
@@ -35,6 +37,7 @@ import com.ardor3d.util.ReadOnlyTimer;
 import com.ardor3d.util.Timer;
 import com.ardor3d.util.screen.ScreenExporter;
 import com.ardor3d.util.stat.StatCollector;
+import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
 import com.google.inject.assistedinject.Assisted;
 
 public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanvas, Updater, Scene {
@@ -48,6 +51,8 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
     public LwjglAwtCanvas canvas;
     private JFrame frame;
     private final Node root = new Node();
+    
+    private final BasicPassManager passManager = new BasicPassManager();
     
     private boolean isShotRequested = false;
     private final Object shotFinishedMonitor = new Object();   
@@ -110,6 +115,8 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
         } catch (Exception e) {
         	lastUncaughtException = e;
         }
+        
+        passManager.updatePasses(0);
     }
     
     // called in AWT-EventQueue thread
@@ -132,7 +139,9 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
 	        // see http://www.opengl.org/archives/resources/faq/technical/rasterization.htm#rast0070
 	        frame.toFront();
 	
-	    	root.draw(renderer);
+            // TODO renderer.renderBuckets(); probably not needed anymore
+            passManager.renderPasses(renderer);
+//          root.draw(renderer);
 	
 	        if (isShotRequested) {
 	            // force any waiting scene elements to be rendered.
@@ -178,6 +187,16 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
 	    			getQueue(GameTaskQueue.RENDER).setExecuteMultiple(true);
 			}
 		});
+        
+        // add default render pass
+        this.queueSceneUpdate(new SceneGraphUpdate() {
+            @Override
+            public void update(Node root) {
+                RenderPass pass = new RenderPass();
+                pass.add(root);
+                passManager.add(pass);
+            }
+        });
 
         final LwjglCanvasRenderer canvasRenderer = new LwjglCanvasRenderer(this);
         try {
@@ -280,5 +299,10 @@ public class LwjglAwtScreenshotCanvas implements ScreenshotCanvas, ResizableCanv
 	public PickResults doPick(Ray3 pickRay) {
 		throw new UnsupportedOperationException();
 	}
+
+    @Override
+    public BasicPassManager getPassManager() {
+        return passManager;
+    }
 
 }

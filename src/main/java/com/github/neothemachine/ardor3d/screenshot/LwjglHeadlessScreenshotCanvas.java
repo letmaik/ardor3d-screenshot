@@ -21,6 +21,7 @@ import com.ardor3d.math.Ray3;
 import com.ardor3d.renderer.Renderer;
 import com.ardor3d.renderer.TextureRendererFactory;
 import com.ardor3d.renderer.lwjgl.LwjglTextureRendererProvider;
+import com.ardor3d.renderer.pass.BasicPassManager;
 import com.ardor3d.renderer.state.RenderState.StateType;
 import com.ardor3d.renderer.state.TextureState;
 import com.ardor3d.scenegraph.Mesh;
@@ -56,6 +57,8 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 	private Canvas canvasWrapper;
 
 	private final Node root = new Node();
+	
+	private final BasicPassManager passManager = new BasicPassManager();
 
 	private final ScreenShotBufferExporter screenShotExp = new ScreenShotBufferExporter();
 
@@ -192,6 +195,8 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 		
 		GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
 				.execute();
+		
+		passManager.updatePasses(0);
 
 		GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER)
 				.execute(renderer);
@@ -206,7 +211,9 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 		// Clean up card garbage such as textures, vbos, etc.
 		ContextGarbageCollector.doRuntimeCleanup(renderer);
 
-		root.draw(renderer);
+        // TODO renderer.renderBuckets(); probably not needed anymore
+        passManager.renderPasses(renderer);
+//      root.draw(renderer);
 		
 //		Node meshGeometry = (Node) root.getChild("mesh1-geometry");
 //		for (Spatial mesh : meshGeometry.getChildren()) {
@@ -308,5 +315,10 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 	public PickResults doPick(Ray3 pickRay) {
 		throw new UnsupportedOperationException();
 	}
+
+    @Override
+    public BasicPassManager getPassManager() {
+        return passManager;
+    }
 
 }
