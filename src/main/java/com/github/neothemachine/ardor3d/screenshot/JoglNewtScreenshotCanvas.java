@@ -9,7 +9,6 @@ import java.util.concurrent.ExecutionException;
 
 import javax.inject.Inject;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,6 @@ import com.ardor3d.framework.DisplaySettings;
 import com.ardor3d.framework.FrameHandler;
 import com.ardor3d.framework.Scene;
 import com.ardor3d.framework.Updater;
-import com.ardor3d.framework.jogl.CapsUtil;
 import com.ardor3d.framework.jogl.JoglCanvasRenderer;
 import com.ardor3d.framework.jogl.JoglNewtWindow;
 import com.ardor3d.intersection.PickResults;

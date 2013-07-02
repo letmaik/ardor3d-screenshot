@@ -7,10 +7,7 @@ import java.util.LinkedList;
 import java.util.concurrent.Callable;
 
 import javax.inject.Inject;
-import javax.management.RuntimeErrorException;
 
-import org.apache.commons.lang.NotImplementedException;
-import org.lwjgl.LWJGLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,17 +20,11 @@ import com.ardor3d.renderer.Renderer;
 import com.ardor3d.renderer.TextureRendererFactory;
 import com.ardor3d.renderer.lwjgl.LwjglTextureRendererProvider;
 import com.ardor3d.renderer.pass.BasicPassManager;
-import com.ardor3d.renderer.state.RenderState.StateType;
-import com.ardor3d.renderer.state.TextureState;
-import com.ardor3d.scenegraph.Mesh;
 import com.ardor3d.scenegraph.Node;
-import com.ardor3d.scenegraph.Spatial;
 import com.ardor3d.util.ContextGarbageCollector;
 import com.ardor3d.util.GameTaskQueue;
 import com.ardor3d.util.GameTaskQueueManager;
-import com.ardor3d.util.TextureKey;
 import com.ardor3d.util.screen.ScreenExporter;
-import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
 import com.google.inject.assistedinject.Assisted;
 
 /**
@@ -324,7 +315,7 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 
     @Override
     public void runQueues() {
-        throw new NotImplementedException();
+        throw new UnsupportedOperationException();
     }
 
 }
