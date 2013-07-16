@@ -4,7 +4,20 @@
 	<groupId>com.github.neothemachine</groupId>
 	<artifactId>ardor3d-screenshot</artifactId>
 	<version>0.2.0-SNAPSHOT</version>
+	<inceptionYear>2012</inceptionYear>
+	<name>Ardor3D-Screenshot</name>
+	<description>Take single screenshots of static 3D scenes (useful for server-based rendering)</description>
 	<url>https://github.com/neothemachine/ardor3d-screenshot</url>
+	
+	<ciManagement>
+		<url>https://travis-ci.org/neothemachine/ardor3d-screenshot</url>
+	</ciManagement>
+	
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/neothemachine/ardor3d-screenshot/issues</url>
+	</issueManagement>
+
 	<licenses>
 		<license>
 			<name>BSD 3-Clause License</name>
@@ -204,14 +217,4 @@
 			</plugin>
 		</plugins>
 	</build>
-	<ciManagement>
-		<url>https://travis-ci.org/neothemachine/ardor3d-screenshot</url>
-	</ciManagement>
-	<issueManagement>
-		<system>GitHub Issues</system>
-		<url>https://github.com/neothemachine/ardor3d-screenshot/issues</url>
-	</issueManagement>
-	<inceptionYear>2012</inceptionYear>
-	<name>Ardor3D-Screenshot</name>
-	<description>Take single screenshots of static 3D scenes (useful for server-based rendering)</description>
 </project>
