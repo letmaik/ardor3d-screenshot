@@ -188,7 +188,7 @@ public class ScreenshotCanvasPool {
 		for (ScreenshotCanvas canvas : this.unused.keySet()) {
 			if (canvas instanceof ResizableCanvas) {
 				Object state = this.unused.get(canvas);
-				if (state != null && state.getClass().equals(type)) {
+				if (state != null && type.isAssignableFrom(state.getClass())) {
 					@SuppressWarnings("unchecked")
 					T typedState = (T) state;
 					if (condition.apply(typedState)) {
