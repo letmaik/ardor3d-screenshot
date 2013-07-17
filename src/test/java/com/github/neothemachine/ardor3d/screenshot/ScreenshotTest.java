@@ -45,10 +45,10 @@ import com.google.common.base.Predicate;
 @Guice(modules = {JoglModule.class}) 
 public class ScreenshotTest { 
 
-	private final ScreenshotCanvasPool<CanvasState> pool;
+	private final ScreenshotCanvasPool pool;
 	
 	@Inject
-	public ScreenshotTest(ScreenshotCanvasPool<CanvasState> pool) {
+	public ScreenshotTest(ScreenshotCanvasPool pool) {
 		this.pool = pool;
 		AWTImageLoader.registerLoader();
 	}
@@ -158,7 +158,7 @@ public class ScreenshotTest {
 	
 	private BufferedImage renderEmpty(IntDimension size) {
 		
-		ScreenshotCanvas canvas = pool.getCanvas(size).getValue0();
+		ScreenshotCanvas canvas = pool.getCanvas(size);
 		BufferedImage image = canvas.takeShot();
 		pool.returnCanvas(canvas);
 		
@@ -166,9 +166,9 @@ public class ScreenshotTest {
 	}
 	
 	private BufferedImage renderScene(IntDimension size) {
-		File model = getResource("table/table.dae");
-		final ModelScene scene = new ModelScene(model);
-		ScreenshotCanvas canvas = pool.getCanvas(size).getValue0();
+		final File model = getResource("table/table.dae");
+		final ModelScene scene = new ModelScene();
+		final ScreenshotCanvas canvas = pool.getCanvas(size);
 
 		canvas.queueCanvasUpdate(new CanvasUpdate() {
 			@Override
@@ -180,6 +180,7 @@ public class ScreenshotTest {
 			@Override
 			public void update(Node root) {
 				scene.initScene(root);
+				scene.loadMesh(model, root);
 			}
 		});
 		BufferedImage image = canvas.takeShot();
@@ -193,19 +194,6 @@ public class ScreenshotTest {
 	
 	private Pair<Boolean,BufferedImage> renderSceneReuse(IntDimension size, File texture) {
 		final File model = getResource("table/table.dae");
-
-		Predicate<CanvasState> meshLoadedCondition = new SingleMeshLoadedCondition(model);
-		
-		Pair<ScreenshotCanvas, CanvasState> pair = 
-				pool.getCanvasIfMatch(size, meshLoadedCondition);
-		if (pair == null) {
-			pair = pool.getCanvas(size);
-		}
-		
-		ScreenshotCanvas canvas = pair.getValue0();
-		CanvasState state = pair.getValue1();
-		
-		final ModelScene newScene;
 		
 		final Texture uvTexture;
 
@@ -217,15 +205,50 @@ public class ScreenshotTest {
 			
 		} catch (IOException e) {
 			throw new RuntimeException(e);
-		}  	
+		}
+
+		Predicate<ModelScene> meshLoadedCondition = new SingleMeshLoadedCondition(model);
+		
+		Pair<ScreenshotCanvas, ModelScene> pair = 
+				pool.getCanvasIfMatch(size, ModelScene.class, meshLoadedCondition);
+		final ScreenshotCanvas canvas;
+		final ModelScene scene;
 		
 		boolean reused;
-		if (meshLoadedCondition.apply(state)) {
+		
+		if (pair == null) {
+			reused = false;
+			 canvas = pool.getCanvas(size);
+			 scene = new ModelScene();
+			 
+			canvas.queueCanvasUpdate(new CanvasUpdate() {
+				@Override
+				public void update(Canvas canvas) {
+					scene.initCanvas(canvas);
+				}
+			});
+			canvas.queueSceneUpdate(new SceneGraphUpdate() {
+				@Override
+				public void update(Node root) {
+					scene.initScene(root);
+					scene.loadMesh(model, root);
+					Node meshNode = scene.getMesh(model);
+					Node meshGeometry = (Node) meshNode.getChild("mesh1-geometry");
+					for (Spatial mesh : meshGeometry.getChildren()) {
+						TextureState textureState = new TextureState();
+				        textureState.setTexture(uvTexture);
+						mesh.setRenderState(textureState);
+					}
+				}
+			});
+		} else {
+			canvas = pair.getValue0();
+			scene = pair.getValue1();
+			
 			reused = true;
-			newScene = null;
 			
 			// we can reuse the loaded mesh
-			final Node mesh = state.getMesh(model);
+			final Node mesh = scene.getMesh(model);
 			
 			canvas.queueSceneUpdate(new SceneGraphUpdate() {
 				@Override
@@ -240,44 +263,11 @@ public class ScreenshotTest {
 					}
 				}
 			});
-			
-		} else {
-			reused = false;
-			newScene = new ModelScene(model);
-			
-			canvas.queueCanvasUpdate(new CanvasUpdate() {
-				@Override
-				public void update(Canvas canvas) {
-					newScene.initCanvas(canvas);
-				}
-			});
-			canvas.queueSceneUpdate(new SceneGraphUpdate() {
-				@Override
-				public void update(Node root) {
-					newScene.initScene(root);
-					Node scene = newScene.getLoadedMesh();
-					Node meshGeometry = (Node) scene.getChild("mesh1-geometry");
-					for (Spatial mesh : meshGeometry.getChildren()) {
-						TextureState textureState = new TextureState();
-				        textureState.setTexture(uvTexture);
-						mesh.setRenderState(textureState);
-					}
-				}
-			});
 		}
-
+				
 		BufferedImage image = canvas.takeShot();
-	
-		CanvasState newState;
-		if (newScene != null) {
-			Map<File,Node> meshesLoaded = new HashMap<File, Node>();
-			meshesLoaded.put(model, newScene.getLoadedMesh());
-			newState = new CanvasState(meshesLoaded);
-		} else {
-			newState = state;
-		}
 		
-		pool.returnCanvas(canvas, newState);
+		pool.returnCanvas(canvas, scene);
 		
 		assertEquals(image.getWidth(), size.getWidth());
 		assertEquals(image.getHeight(), size.getHeight());
@@ -286,36 +276,6 @@ public class ScreenshotTest {
 	}
 	
 	private Pair<Boolean,BufferedImage> renderSceneReuseMultiple(IntDimension size, final File model, File texture) {
-		Predicate<CanvasState> meshLoaded = new MeshesLoadedCondition(model);
-
-		/*
-		 * 1. if a scene with our mesh exists, use it
-		 * 2. otherwise, if any other scene exists, use it and add the model to it
-		 * 3. otherwise, use new scene
-		 */
-		
-		Predicate<CanvasState> anyMeshesLoaded = new MeshesLoadedCondition(Collections.<File>emptySet());
-		
-		boolean freshCanvas = false;
-		
-		Pair<ScreenshotCanvas, CanvasState> pair =
-				pool.getCanvasIfMatch(size, meshLoaded);
-		if (pair != null) {
-			System.out.println("exact match");
-		}
-		if (pair == null) {
-			pair = pool.getCanvasIfMatch(size, anyMeshesLoaded);
-		}
-		if (pair == null) {
-			freshCanvas = true;
-			pair = pool.getCanvas(size);
-		}
-		
-		ScreenshotCanvas canvas = pair.getValue0();
-		final CanvasState state = pair.getValue1();
-		
-		final ModelScene newScene;
-		final Node newMesh;
 		
 		final Texture uvTexture;
 
@@ -327,17 +287,36 @@ public class ScreenshotTest {
 			
 		} catch (IOException e) {
 			throw new RuntimeException(e);
-		}  	
+		}
 		
+		Predicate<ModelScene> meshLoaded = new MeshesLoadedCondition(model);	
+		Predicate<ModelScene> anyMeshesLoaded = new MeshesLoadedCondition(Collections.<File>emptySet());
+		
+		/*
+		 * 1. if a scene with our mesh exists, use it
+		 * 2. otherwise, if any other scene exists, use it and add the model to it
+		 * 3. otherwise, use new scene
+		 */
+						
 		boolean reused = false;
-		// 1. if a scene with our mesh exists, use it
-		if (meshLoaded.apply(state)) {
+		
+		final ScreenshotCanvas canvas;
+		final ModelScene scene;
+		
+		Pair<ScreenshotCanvas, ModelScene> pair =
+				pool.getCanvasIfMatch(size, ModelScene.class, meshLoaded);
+		
+		if (pair != null) {
+			// 1. if a scene with our mesh exists, use it
+			System.out.println("exact match");
+			
+			canvas = pair.getValue0();
+			scene = pair.getValue1();
+			
 			reused = true;
-			newScene = null;
-			newMesh = null;
 			
 			// we can reuse the loaded mesh
-			final Node mesh = state.getMesh(model);
+			final Node mesh = scene.getMesh(model);
 			
 			canvas.queueSceneUpdate(new SceneGraphUpdate() {
 				@Override
@@ -355,7 +334,7 @@ public class ScreenshotTest {
 //					mesh.setTranslation(-1, -1, 0);
 					mesh.setTranslation(0, 0, 0);
 					
-					for (Entry<File, Node> entry : state.getMeshes().entrySet()) {
+					for (Entry<File, Node> entry : scene.getMeshes().entrySet()) {
 						if (entry.getKey().equals(model)) {
 							continue;
 						}
@@ -363,87 +342,76 @@ public class ScreenshotTest {
 					}
 				}
 			});
-		
-		//2. otherwise, if any other scene exists, use it and add the model to it
-		} else if (!freshCanvas) {
-			
-			System.out.println("half match");
-			
-			reused = true;
-			newScene = null;
-			
-			try {
-				newMesh = ModelScene.loadMesh(model);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-			
-			canvas.queueSceneUpdate(new SceneGraphUpdate() {
-				@Override
-				public void update(Node root) {
-
-					root.attachChild(newMesh);					
-					newMesh.setTranslation(-1, -1, 0);
-					
-					Node meshGeometry = (Node) newMesh.getChild("mesh1-geometry");
-					for (Spatial mesh : meshGeometry.getChildren()) {
-						TextureState textureState = new TextureState();
-				        textureState.setTexture(uvTexture);
-						mesh.setRenderState(textureState);
-					}
-					
-					// move all other meshes behind the cam	
-					for (Entry<File, Node> entry : state.getMeshes().entrySet()) {
-						if (entry.getKey().equals(model)) {
-							continue;
-						}
-						entry.getValue().setTranslation(0, 0, -1000000);
-					}
-				}
-			});
-			
-		// 3. otherwise, use new scene
 		} else {
+			pair = pool.getCanvasIfMatch(size, ModelScene.class, anyMeshesLoaded);
 			
-			System.out.println("new scene");
-			
-			newScene = new ModelScene(model);
-			newMesh = null;
-			
-			canvas.queueCanvasUpdate(new CanvasUpdate() {
-				@Override
-				public void update(Canvas canvas) {
-					newScene.initCanvas(canvas);
-				}
-			});
-			canvas.queueSceneUpdate(new SceneGraphUpdate() {
-				@Override
-				public void update(Node root) {
-					newScene.initScene(root);
-					Node scene = newScene.getLoadedMesh();
-					Node meshGeometry = (Node) scene.getChild("mesh1-geometry");
-					for (Spatial mesh : meshGeometry.getChildren()) {
-						TextureState textureState = new TextureState();
-				        textureState.setTexture(uvTexture);
-						mesh.setRenderState(textureState);
+			if (pair != null) {
+				//2. otherwise, if any other scene exists, use it and add the model to it
+				System.out.println("half match");
+				
+				canvas = pair.getValue0();
+				scene = pair.getValue1();
+											
+				reused = true;
+				
+				canvas.queueSceneUpdate(new SceneGraphUpdate() {
+					@Override
+					public void update(Node root) {
+
+						scene.loadMesh(model, root);
+						Node newMesh = scene.getMesh(model);
+						
+						Node meshGeometry = (Node) newMesh.getChild("mesh1-geometry");
+						for (Spatial mesh : meshGeometry.getChildren()) {
+							TextureState textureState = new TextureState();
+					        textureState.setTexture(uvTexture);
+							mesh.setRenderState(textureState);
+						}
+						
+						// move all other meshes behind the cam	
+						for (Entry<File, Node> entry : scene.getMeshes().entrySet()) {
+							if (entry.getKey().equals(model)) {
+								continue;
+							}
+							entry.getValue().setTranslation(0, 0, -1000000);
+						}
 					}
-				}
-			});
+				});
+				
+			} else {
+				// 3. otherwise, use new scene
+				System.out.println("new scene");
+				
+				canvas = pool.getCanvas(size);
+				
+				scene = new ModelScene();
+				
+				canvas.queueCanvasUpdate(new CanvasUpdate() {
+					@Override
+					public void update(Canvas canvas) {
+						scene.initCanvas(canvas);
+					}
+				});
+				canvas.queueSceneUpdate(new SceneGraphUpdate() {
+					@Override
+					public void update(Node root) {
+						scene.initScene(root);
+						scene.loadMesh(model, root);
+						Node meshNode = scene.getMesh(model);
+						Node meshGeometry = (Node) meshNode.getChild("mesh1-geometry");
+						for (Spatial mesh : meshGeometry.getChildren()) {
+							TextureState textureState = new TextureState();
+					        textureState.setTexture(uvTexture);
+							mesh.setRenderState(textureState);
+						}
+					}
+				});
+			}
 		}
-
+		
 		BufferedImage image = canvas.takeShot();
-
-		Map<File,Node> newMeshes = state.getMeshes();
-		
-		if (newScene != null) {
-			newMeshes.put(model, newScene.getLoadedMesh());
-		} else if (newMesh != null) {
-			newMeshes.put(model, newMesh);
-		}
-		
-		CanvasState newState = new CanvasState(newMeshes);
-		
-		pool.returnCanvas(canvas, newState);
+				
+		pool.returnCanvas(canvas, scene);
 		
 		assertEquals(image.getWidth(), size.getWidth());
 		assertEquals(image.getHeight(), size.getHeight());

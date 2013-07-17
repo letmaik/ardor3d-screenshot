@@ -53,8 +53,9 @@ public class MinimalHeadlessTest implements Scene {
 			Canvas canvasWrapper = new LwjglHeadlessCanvasWrapper(canvas);
 
 			File model = getResource("table/table.dae");
-			ModelScene scene = new ModelScene(model);
+			ModelScene scene = new ModelScene();
 			scene.initScene(root);
+			scene.loadMesh(model, root);
 			scene.initCanvas(canvasWrapper);
 			root.updateGeometricState(0);
 

@@ -6,7 +6,7 @@ import java.util.Set;
 
 import com.google.common.base.Predicate;
 
-public class MeshesLoadedCondition implements Predicate<CanvasState> {
+public class MeshesLoadedCondition implements Predicate<ModelScene> {
 	
 	private final Set<File> models;
 
@@ -20,8 +20,8 @@ public class MeshesLoadedCondition implements Predicate<CanvasState> {
 	}
 	
 	@Override
-	public boolean apply(CanvasState state) {
-		return state.getMeshFiles().containsAll(models);
+	public boolean apply(ModelScene scene) {
+		return scene.getMeshFiles().containsAll(models);
 	}
 	
 }

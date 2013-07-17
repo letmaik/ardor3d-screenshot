@@ -5,6 +5,10 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import com.ardor3d.extension.model.collada.jdom.ColladaImporter;
 import com.ardor3d.framework.Canvas;
@@ -19,12 +23,7 @@ import com.ardor3d.util.resource.SimpleResourceLocator;
 
 public class ModelScene {
 	
-	private File model;
-	private Node mesh = null;
-
-	public ModelScene(File model) {
-		this.model = model;
-	}
+	private final Map<File, Node> meshesLoaded = new HashMap<File, Node>();
 
 	public void initCanvas(Canvas canvas) {
 		Camera cam = canvas.getCanvasRenderer().getCamera();
@@ -38,14 +37,6 @@ public class ModelScene {
         buf.setFunction(ZBufferState.TestFunction.LessThanOrEqualTo);
         root.setRenderState(buf);
 
-        Node mesh;
-		try {
-			mesh = loadMesh(this.model);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-		mesh.setTranslation(-1, -1, 0);
-        
         final PointLight light = new PointLight();
         light.setLocation(new Vector3(0, 100, 100));
         light.setEnabled(true);
@@ -55,20 +46,44 @@ public class ModelScene {
         lightState.setEnabled(true);
         lightState.attach(light);
         root.setRenderState(lightState);
-        
-        root.attachChild(mesh);
-        
-        this.mesh = mesh;
+
 	}
 	
-	public Node getLoadedMesh() {
-		if (this.mesh == null) {
-			throw new IllegalStateException();
+	public void loadMesh(File meshFile, Node root) {
+        Node mesh;
+		try {
+			mesh = doLoadMesh(meshFile);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
-		return this.mesh;
+		mesh.setTranslation(-1, -1, 0);
+		
+		root.attachChild(mesh);
+		
+		this.meshesLoaded.put(meshFile, mesh);
+	}
+	
+	public boolean isMeshLoaded(File mesh) {
+		return this.meshesLoaded.containsKey(mesh);
+	}
+	
+	public int getMeshCount() {
+		return this.meshesLoaded.size();
+	}
+	
+	public Node getMesh(File mesh) {
+		return this.meshesLoaded.get(mesh);
+	}
+	
+	public Set<File> getMeshFiles() {
+		return new HashSet<File>(this.meshesLoaded.keySet());
+	}
+	
+	public Map<File, Node> getMeshes() {
+		return new HashMap<File,Node>(this.meshesLoaded);
 	}
 
-	public static Node loadMesh(File model) throws IOException {
+	private static Node doLoadMesh(File model) throws IOException {
 		URL modelUrlDir;
 		try {
 			modelUrlDir = new URL("file:" + model.getParent());
