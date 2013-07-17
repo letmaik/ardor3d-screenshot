@@ -173,7 +173,7 @@ public class ScreenshotCanvasPool {
 		// 1. Canvas with matching size and type and conditions
 		for (ScreenshotCanvas canvas : sizeMatchCanvases) {
 			Object state = this.unused.get(canvas);
-			if (state != null && state.getClass().equals(type)) {
+			if (state != null && type.isAssignableFrom(state.getClass())) {
 				@SuppressWarnings("unchecked")
 				T typedState = (T) state;
 				if (condition.apply(typedState)) {
