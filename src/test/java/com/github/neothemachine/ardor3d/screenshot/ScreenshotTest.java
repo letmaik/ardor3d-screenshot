@@ -200,7 +200,7 @@ public class ScreenshotTest {
     	try {
 			uvTexture = TextureManager.loadFromImage(
 					AWTImageLoader.makeArdor3dImage(ImageIO.read(texture), false),
-					Texture.MinificationFilter.Trilinear
+					Texture.MinificationFilter.BilinearNoMipMaps
 					);
 			
 		} catch (IOException e) {
@@ -282,7 +282,7 @@ public class ScreenshotTest {
     	try {
 			uvTexture = TextureManager.loadFromImage(
 					AWTImageLoader.makeArdor3dImage(ImageIO.read(texture), false),
-					Texture.MinificationFilter.Trilinear
+					Texture.MinificationFilter.BilinearNoMipMaps
 					);
 			
 		} catch (IOException e) {
