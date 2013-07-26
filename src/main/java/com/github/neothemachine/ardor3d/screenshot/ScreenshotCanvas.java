@@ -5,6 +5,7 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
+import com.ardor3d.renderer.pass.BasicPassManager;
 import com.google.inject.BindingAnnotation;
 
 public interface ScreenshotCanvas extends UpdateableCanvas {
@@ -20,6 +21,13 @@ public interface ScreenshotCanvas extends UpdateableCanvas {
 	IntDimension getSize();
 	
 	BufferedImage takeShot();
+	
+	/**
+	 * Run all pending queue actions without taking a screenshot.
+	 */
+	void runQueues();
+	
+	BasicPassManager getPassManager();
 
 	/**
 	 * Destroy canvas resources.

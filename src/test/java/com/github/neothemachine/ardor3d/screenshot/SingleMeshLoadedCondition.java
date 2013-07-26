@@ -4,7 +4,7 @@ import java.io.File;
 
 import com.google.common.base.Predicate;
 
-public class SingleMeshLoadedCondition implements Predicate<CanvasState> {
+public class SingleMeshLoadedCondition implements Predicate<ModelScene> {
 	
 	private final File model;
 
@@ -13,8 +13,8 @@ public class SingleMeshLoadedCondition implements Predicate<CanvasState> {
 	}
 	
 	@Override
-	public boolean apply(CanvasState state) {
-		return state.getMeshCount() == 1 && state.isMeshLoaded(model);
+	public boolean apply(ModelScene scene) {
+		return scene.getMeshCount() == 1 && scene.isMeshLoaded(model);
 	}
 	
 }

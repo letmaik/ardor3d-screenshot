@@ -104,4 +104,9 @@ class LwjglHeadlessCanvasRenderer implements CanvasRenderer {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
+	public Renderer createRenderer() {
+		throw new UnsupportedOperationException();
+	}
+
 }

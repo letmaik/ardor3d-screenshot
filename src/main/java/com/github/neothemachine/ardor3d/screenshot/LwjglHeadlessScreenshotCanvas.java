@@ -7,9 +7,7 @@ import java.util.LinkedList;
 import java.util.concurrent.Callable;
 
 import javax.inject.Inject;
-import javax.management.RuntimeErrorException;
 
-import org.lwjgl.LWJGLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,17 +19,12 @@ import com.ardor3d.math.Ray3;
 import com.ardor3d.renderer.Renderer;
 import com.ardor3d.renderer.TextureRendererFactory;
 import com.ardor3d.renderer.lwjgl.LwjglTextureRendererProvider;
-import com.ardor3d.renderer.state.RenderState.StateType;
-import com.ardor3d.renderer.state.TextureState;
-import com.ardor3d.scenegraph.Mesh;
+import com.ardor3d.renderer.pass.BasicPassManager;
 import com.ardor3d.scenegraph.Node;
-import com.ardor3d.scenegraph.Spatial;
 import com.ardor3d.util.ContextGarbageCollector;
 import com.ardor3d.util.GameTaskQueue;
 import com.ardor3d.util.GameTaskQueueManager;
-import com.ardor3d.util.TextureKey;
 import com.ardor3d.util.screen.ScreenExporter;
-import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
 import com.google.inject.assistedinject.Assisted;
 
 /**
@@ -56,6 +49,8 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 	private Canvas canvasWrapper;
 
 	private final Node root = new Node();
+	
+	private final BasicPassManager passManager = new BasicPassManager();
 
 	private final ScreenShotBufferExporter screenShotExp = new ScreenShotBufferExporter();
 
@@ -192,6 +187,8 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 		
 		GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.UPDATE)
 				.execute();
+		
+		passManager.updatePasses(0);
 
 		GameTaskQueueManager.getManager(this).getQueue(GameTaskQueue.RENDER)
 				.execute(renderer);
@@ -206,16 +203,8 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 		// Clean up card garbage such as textures, vbos, etc.
 		ContextGarbageCollector.doRuntimeCleanup(renderer);
 
-		root.draw(renderer);
-		
-//		Node meshGeometry = (Node) root.getChild("mesh1-geometry");
-//		for (Spatial mesh : meshGeometry.getChildren()) {
-//			TextureState s = (TextureState) mesh.getLocalRenderState(StateType.Texture);
-//			if (s != null) {
-//				TextureKey k = s.getTexture().getTextureKey();
-//				// inspect k
-//			}
-//		}
+        // TODO renderer.renderBuckets(); probably not needed anymore
+        passManager.renderPasses(renderer);
 		
 		if (isShotRequested) {
 			// force any waiting scene elements to be rendered.
@@ -308,5 +297,15 @@ public class LwjglHeadlessScreenshotCanvas implements ScreenshotCanvas, Scene,
 	public PickResults doPick(Ray3 pickRay) {
 		throw new UnsupportedOperationException();
 	}
+
+    @Override
+    public BasicPassManager getPassManager() {
+        return passManager;
+    }
+
+    @Override
+    public void runQueues() {
+        throw new UnsupportedOperationException();
+    }
 
 }

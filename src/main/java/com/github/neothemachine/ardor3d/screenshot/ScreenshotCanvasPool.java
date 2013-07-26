@@ -1,11 +1,8 @@
 package com.github.neothemachine.ardor3d.screenshot;
 
 import java.lang.Thread.UncaughtExceptionHandler;
-import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -14,28 +11,22 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.inject.Singleton;
 
 import org.javatuples.Pair;
 
-import com.ardor3d.framework.Canvas;
 import com.ardor3d.scenegraph.Node;
 import com.ardor3d.util.ContextGarbageCollector;
-import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.CanvasUpdate;
 import com.github.neothemachine.ardor3d.screenshot.UpdateableCanvas.SceneGraphUpdate;
 import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.Maps;
 import com.google.inject.BindingAnnotation;
 
 @Singleton
-public class ScreenshotCanvasPool<T> {
+public class ScreenshotCanvasPool {
 
-	// TODO needed?
-//	static {
-//		System.setProperty("ardor3d.useMultipleContexts", "true");
-//	}
+	static {
+		System.setProperty("ardor3d.useMultipleContexts", "true");
+	}
 
 	public interface ScreenshotCanvasFactory {
 		ScreenshotCanvas create(IntDimension size);
@@ -50,17 +41,14 @@ public class ScreenshotCanvasPool<T> {
 	
 	private final int maxCanvases;
 
-	private final Map<ScreenshotCanvas, T> unused = new HashMap<ScreenshotCanvas, T>();
+	private final Map<ScreenshotCanvas, Object> unused = new HashMap<ScreenshotCanvas, Object>();
 
 	private final Set<ScreenshotCanvas> inUse = new HashSet<ScreenshotCanvas>();
 
-	private final T initialState;
-
 	@Inject
-	public ScreenshotCanvasPool(ScreenshotCanvasFactory factory, @MaxCanvases int maxCanvases, T initialState) {
+	public ScreenshotCanvasPool(ScreenshotCanvasFactory factory, @MaxCanvases int maxCanvases) {
 		this.factory = factory;
 		this.maxCanvases = maxCanvases;
-		this.initialState = initialState;
 	}
 
 	/**
@@ -69,7 +57,7 @@ public class ScreenshotCanvasPool<T> {
 	 * @param size
 	 * @return
 	 */
-	public synchronized Pair<ScreenshotCanvas,T> getCanvas(final IntDimension size) {
+	public synchronized ScreenshotCanvas getCanvas(final IntDimension size) {
 
 		int unusedCount = this.unused.size();
 		int usedCount = this.inUse.size();
@@ -99,7 +87,7 @@ public class ScreenshotCanvasPool<T> {
 				clearSceneGraph(canvas);
 				this.inUse.add(canvas);
 				this.unused.remove(canvas);
-				return new Pair<ScreenshotCanvas, T>(canvas, initialState);
+				return canvas;
 			}
 		}
 		
@@ -111,7 +99,7 @@ public class ScreenshotCanvasPool<T> {
 					((ResizableCanvas) canvas).setSize(size);
 					this.inUse.add(canvas);
 					this.unused.remove(canvas);
-					return new Pair<ScreenshotCanvas, T>(canvas, initialState);
+					return canvas;
 				}
 			}
 
@@ -133,10 +121,13 @@ public class ScreenshotCanvasPool<T> {
 				canvas.dispose();
 				inUse.remove(canvas);
 				unused.remove(canvas);
+				synchronized (ScreenshotCanvasPool.this) {
+					ScreenshotCanvasPool.this.notifyAll();
+				}
 			}
 		});
 		
-		return new Pair<ScreenshotCanvas, T>(canvas, initialState);	
+		return canvas;	
 	}
 
 	
@@ -147,8 +138,8 @@ public class ScreenshotCanvasPool<T> {
 	 * @param condition
 	 * @return
 	 */
-	public synchronized Pair<ScreenshotCanvas, T> 
-		getCanvasIfMatch(IntDimension size, Predicate<T> condition) {
+	public synchronized <T> Pair<ScreenshotCanvas, T> 
+		getCanvasIfMatch(IntDimension size, Class<T> type, Predicate<T> condition) {
 
 		int unusedCount = this.unused.size();
 		int usedCount = this.inUse.size();
@@ -167,8 +158,8 @@ public class ScreenshotCanvasPool<T> {
 
 		/**
 		 * Order:
-		 * 1. Canvas with matching size and conditions
-		 * 2. Resizeable canvas with matching conditions
+		 * 1. Canvas with matching size and type and conditions
+		 * 2. Resizeable canvas with matching type and conditions
 		 */
 		
 		List<ScreenshotCanvas> sizeMatchCanvases = new LinkedList<ScreenshotCanvas>();
@@ -178,26 +169,35 @@ public class ScreenshotCanvasPool<T> {
 			}
 		}
 		
-		// 1. Canvas with matching size and conditions
+		// 1. Canvas with matching size and type and conditions
 		for (ScreenshotCanvas canvas : sizeMatchCanvases) {
-			T state = this.unused.get(canvas);
-			if (condition.apply(state)) {
-				this.inUse.add(canvas);
-				this.unused.remove(canvas);
-				return new Pair<ScreenshotCanvas, T>(canvas, state);
+			Object state = this.unused.get(canvas);
+			if (state != null && type.isAssignableFrom(state.getClass())) {
+				@SuppressWarnings("unchecked")
+				T typedState = (T) state;
+				if (condition.apply(typedState)) {
+					this.inUse.add(canvas);
+					this.unused.remove(canvas);
+					return new Pair<ScreenshotCanvas, T>(canvas, typedState);
+				}
 			}
 		}
 			
-		// 2. Resizable canvas with size changed and matching conditions
+		// 2. Resizable canvas with size changed and matching type and conditions
 		for (ScreenshotCanvas canvas : this.unused.keySet()) {
 			if (canvas instanceof ResizableCanvas) {
-				T state = this.unused.get(canvas);
-				if (condition.apply(state)) {
-					((ResizableCanvas) canvas).setSize(size);
-					this.inUse.add(canvas);
-					this.unused.remove(canvas);
-					return new Pair<ScreenshotCanvas, T>(canvas, state);
+				Object state = this.unused.get(canvas);
+				if (state != null && type.isAssignableFrom(state.getClass())) {
+					@SuppressWarnings("unchecked")
+					T typedState = (T) state;
+					if (condition.apply(typedState)) {
+						((ResizableCanvas) canvas).setSize(size);
+						this.inUse.add(canvas);
+						this.unused.remove(canvas);
+						return new Pair<ScreenshotCanvas, T>(canvas, typedState);
+					}
 				}
+
 			}
 		}
 
@@ -211,12 +211,12 @@ public class ScreenshotCanvasPool<T> {
 		}
 
 		this.inUse.remove(canvas);
-		this.unused.put(canvas, initialState);
+		this.unused.put(canvas, null);
 		this.notifyAll();
 	}
 
 	public synchronized void returnCanvas(ScreenshotCanvas canvas,
-			T newState) {
+			Object newState) {
 
 		if (!this.inUse.contains(canvas)) {
 			throw new RuntimeException("Canvas wasn't in use");
