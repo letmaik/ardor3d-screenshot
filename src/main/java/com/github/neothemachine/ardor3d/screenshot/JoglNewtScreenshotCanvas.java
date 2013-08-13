@@ -21,19 +21,23 @@ import com.ardor3d.framework.jogl.JoglCanvasRenderer;
 import com.ardor3d.framework.jogl.JoglNewtWindow;
 import com.ardor3d.intersection.PickResults;
 import com.ardor3d.math.Ray3;
+import com.ardor3d.renderer.ContextManager;
 import com.ardor3d.renderer.Renderer;
 import com.ardor3d.renderer.TextureRendererFactory;
 import com.ardor3d.renderer.jogl.JoglTextureRendererProvider;
 import com.ardor3d.renderer.pass.BasicPassManager;
 import com.ardor3d.renderer.pass.RenderPass;
+import com.ardor3d.scenegraph.AbstractBufferData;
 import com.ardor3d.scenegraph.Node;
 import com.ardor3d.util.Constants;
 import com.ardor3d.util.ContextGarbageCollector;
 import com.ardor3d.util.GameTaskQueue;
+import com.ardor3d.util.TextureManager;
 import com.ardor3d.util.GameTaskQueue.ExecutionExceptionListener;
 import com.ardor3d.util.GameTaskQueueManager;
 import com.ardor3d.util.ReadOnlyTimer;
 import com.ardor3d.util.Timer;
+import com.ardor3d.util.scenegraph.DisplayListDelegate;
 import com.ardor3d.util.screen.ScreenExporter;
 import com.ardor3d.util.stat.StatCollector;
 import com.google.inject.assistedinject.Assisted;
@@ -286,8 +290,14 @@ public class JoglNewtScreenshotCanvas implements ScreenshotCanvas/*, ResizableCa
 					root.detachAllChildren();
 				}
 			});
+			
+			TextureManager.cleanAllTextures(null, canvas.getCanvasRenderer().getRenderContext(), null);
+	        AbstractBufferData.cleanAllVBOs(null, canvas.getCanvasRenderer().getRenderContext());
+//	        DisplayListDelegate.cleanAllDisplayLists(immediateDelete);
+	        
 			_frameHandler.updateFrame();
 	        canvas.close();
+	        ContextManager.removeContext(canvas.getCanvasRenderer().getContext());
 	        
 	        log.info("FBO-canvas disposed (" + size.getWidth() + "x" + size.getHeight() + "x24)");
 
