@@ -241,7 +241,6 @@ public class ScreenshotCanvasPool {
 		if (this.inUse.size() > 0) {
 			throw new RuntimeException("At least one canvas still in use");
 		}
-		ContextGarbageCollector.doFinalCleanup(null);
 		for (ScreenshotCanvas c : this.unused.keySet()) {
 			c.dispose();
 		}		
