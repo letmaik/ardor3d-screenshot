@@ -21,26 +21,29 @@ public class ScreenShotBufferExporter implements ScreenExportable {
     private BufferedImage lastImage;
 
     public void export(final ByteBuffer data, final int width, final int height) {
-        final BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+
+    	int[] rgb = new int[width*height];
 
         int index, r, g, b, a;
         int argb;
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
+        int currentIndex = 0;
+        for (int y = 0; y < height; y++) {
+        	for (int x = 0; x < width; x++) {            
                 index = 4 * ((height - y - 1) * width + x);
                 r = data.get(index + 0);
                 g = data.get(index + 1);
                 b = data.get(index + 2);
-
-                argb = ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
-
                 a = data.get(index + 3);
-                argb |= (a & 0xFF) << 24;
+
+                argb = ((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
                 
-                img.setRGB(x, y, argb);
+                rgb[currentIndex++] = argb;
             }
         }
         
+        final BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        img.getRaster().setDataElements(0, 0, width, height, rgb);
+                
         lastImage = img;
     }
 
